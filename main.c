@@ -3,10 +3,43 @@
 #include <unistd.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <string.h>
 
 #include "shmfunctions.h"
 
+#define GAMEKINDNAME "Bashni"
+#define PORTNUMBER 1357
+#define HOSTNAME "sysprak.priv.lab.nm.ifi.lmu.de"
+
+// Hilfsnachricht zu den geforderten Kommandozeilenparametern
+void printHelp(void) {
+    printf("Um das Programm auszuführen, übergeben Sie bitte folgende Informationen als Kommandozeilenparameter:\n");
+    printf("-g <gameid>: eine 13-stellige Game-ID\n");
+    printf("-p <playerno>: Ihre gewünschte Spielernummer (1 oder 2)\n");
+}
+
 int main(int argc, char *argv[]) {
+
+    // legt Variablen für Game-ID und Spielernummer an und liest dann Werte dafür von der Kommandozeile ein
+    char gameID[14] = "";
+    int playerNumber = 0;
+
+    int input;
+    while ((input = getopt(argc, argv, "g:p:")) != -1) {
+        switch (input) {
+            case 'g':
+                strncpy(gameID, optarg, 13);
+                gameID[13] = '\0';
+                break;
+            case 'p':
+                playerNumber = atoi(optarg);
+                break;
+            default:
+                printHelp();
+                break;
+        }
+    }
+
 
     // legt einen Shared-Memory-Bereich mit Größe 1000 an
     int shmid = shmCreate(1000);
