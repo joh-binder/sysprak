@@ -10,6 +10,7 @@
 
 #include "shmfunctions.h"
 #include "performConnection.h"
+#include "config.h"
 
 #define GAMEKINDNAME "Bashni"
 #define PORTNUMBER 1357
@@ -45,9 +46,10 @@ int main(int argc, char *argv[]) {
     // legt Variablen für Game-ID und Spielernummer an und liest dann Werte dafür von der Kommandozeile ein
     char gameID[14] = "";
     int playerNumber = 0;
+    char *confFilePath = "client.conf";
 
     int input;
-    while ((input = getopt(argc, argv, "g:p:")) != -1) {
+    while ((input = getopt(argc, argv, "g:p:c:")) != -1) {
         switch (input) {
             case 'g':
                 strncpy(gameID, optarg, 13);
@@ -56,12 +58,19 @@ int main(int argc, char *argv[]) {
             case 'p':
                 playerNumber = atoi(optarg);
                 break;
+            case 'c':
+                confFilePath = optarg;
+                break;
             default:
                 printHelp();
-                break;
+                return EXIT_FAILURE;
         }
     }
 
+
+    // öffnet confFilePath und schreibt die dortigen Konfigurationswerte in das Struct configInfo
+    struct cnfgInfo configInfo = createConfigStruct();
+    if (readFromConfFile(configInfo, confFilePath) == -1) return EXIT_FAILURE;
 
     // legt einen Shared-Memory-Bereich mit Größe 1000 an
     int shmid = shmCreate(1000);
@@ -124,7 +133,6 @@ int main(int argc, char *argv[]) {
 
         if (shmDelete(shmid) > 0) return EXIT_FAILURE;
     }
-
 
     return EXIT_SUCCESS;
 }

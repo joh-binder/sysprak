@@ -2,6 +2,7 @@ CFLAGS ?= -Wall -Wextra -g
 CC ?= gcc
 GAME_ID ?= ""
 PLAYER ?= 1
+CONFIG = "client.conf"
 
 .PHONY: play clean
 
@@ -15,6 +16,9 @@ shmfunctions.o: shmfunctions.c shmfunctions.h
 	$(CC) $(CFLAGS) -c $<
 
 performConnection.o: performConnection.c performConnection.h
+	$(CC) $(CFLAGS) -c $<
+
+config.o: config.c config.h
 	$(CC) $(CFLAGS) -c $<
 
 play: sysprak-client
