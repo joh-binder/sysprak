@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <string.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -41,6 +42,7 @@ void hostnameToIp(char *ipA) {
     }
 }
 
+
 int main(int argc, char *argv[]) {
 
     // legt Variablen für Game-ID und Spielernummer an und liest dann Werte dafür von der Kommandozeile ein
@@ -67,10 +69,19 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    printf("Folgende Werte wurden übergeben:\n");
+    printf("Game-ID: %s\n", gameID);
+    printf("Spielernummer: %d\n", playerNumber);
+    printf("Pfad: %s\n", confFilePath);
 
     // öffnet confFilePath und schreibt die dortigen Konfigurationswerte in das Struct configInfo
     struct cnfgInfo configInfo = createConfigStruct();
-    if (readFromConfFile(configInfo, confFilePath) == -1) return EXIT_FAILURE;
+    if (readFromConfFile(&configInfo, confFilePath) == -1) return EXIT_FAILURE;
+
+    printf("Ich habe die Funktion readFromConfFile aufgerufen und die Werte, die in configInfo stehen, sind jetzt:\n");
+    printf("gameKindName: %s\n", configInfo.gameKindName);
+    printf("hostName: %s\n", configInfo.hostName);
+    printf("portNumber: %d\n", configInfo.portNumber);
 
     // legt einen Shared-Memory-Bereich mit Größe 1000 an
     int shmid = shmCreate(1000);

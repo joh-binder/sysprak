@@ -2,7 +2,7 @@ CFLAGS ?= -Wall -Wextra -g
 CC ?= gcc
 GAME_ID ?= ""
 PLAYER ?= 1
-CONFIG = "client.conf"
+CONFIG ?= "client.conf"
 
 .PHONY: play clean
 
