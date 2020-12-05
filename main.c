@@ -4,18 +4,39 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <string.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 
 #include "shmfunctions.h"
 
 #define GAMEKINDNAME "Bashni"
 #define PORTNUMBER 1357
 #define HOSTNAME "sysprak.priv.lab.nm.ifi.lmu.de"
+#define BUF 256 // für Array mit IP-Adresse
 
 // Hilfsnachricht zu den geforderten Kommandozeilenparametern
 void printHelp(void) {
     printf("Um das Programm auszuführen, übergeben Sie bitte folgende Informationen als Kommandozeilenparameter:\n");
     printf("-g <gameid>: eine 13-stellige Game-ID\n");
     printf("-p <playerno>: Ihre gewünschte Spielernummer (1 oder 2)\n");
+}
+
+// speichert die IP-Adresse von Hostname in punktierter Darstellung in einem char Array ab
+void hostnameToIp(char *ipA) {
+    struct in_addr **addr_list;
+    struct hostent *host;
+
+    host = gethostbyname(HOSTNAME);
+    if (host==NULL){
+        herror("Konnte Rechner nicht finden");
+    }
+
+    addr_list = (struct in_addr **) host->h_addr_list;
+
+    for (int i = 0; addr_list[i] != NULL; i++) {
+        strcpy(ipA, inet_ntoa(*addr_list[i]));
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -79,6 +100,26 @@ int main(int argc, char *argv[]) {
         if (shmDelete(shmid) > 0) return EXIT_FAILURE;
     }
 
+    // Socket vorbereiten
+    int sock = 0;
+    struct sockaddr_in address;
+    address.sin_family = AF_INET;
+    address.sin_port = htons(PORTNUMBER);
+    char ip[BUF]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
+    hostnameToIp(ip);
+
+    // Socket erstellen
+    if (sock = socket(AF_INET,SOCK_STREAM,0) < 0){
+        printf("\n Error: Socket konnte nicht erstellt werden \n");
+    }
+    inet_aton(ip,&address.sin_addr);
+    if(connect(sock,(struct sockaddr*) &address, sizeof(address)) < 0) {
+        printf("\n Error: Connect schiefgelaufen \n");
+    }
+
+    performConnect(sock);
+
+    close(sock);
+
     return EXIT_SUCCESS;
 }
-
