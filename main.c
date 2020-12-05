@@ -81,7 +81,31 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     } else if (pid == 0) {
         // wir sind im Kindprozess -> Connector
-        close(fd[1]);
+        close(fd[0]); // schließt Leseende der Pipe
+
+        // Socket vorbereiten
+        int sock = 0;
+        struct sockaddr_in address;
+        address.sin_family = AF_INET;
+        address.sin_port = htons(PORTNUMBER);
+        char ip[BUF]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
+        hostnameToIp(ip);
+
+        printf("IP lautet: %s\n", ip);
+
+        // Socket erstellen
+        if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+            printf("\n Error: Socket konnte nicht erstellt werden \n");
+        }
+
+        inet_aton(ip,&address.sin_addr);
+        if(connect(sock,(struct sockaddr*) &address, sizeof(address)) < 0) {
+            printf("\n Error: Connect schiefgelaufen \n");
+        }
+
+        // performConnect(sock);
+
+        close(sock);
 
         // schreibt zwei Ints in den Shared-Memory-Bereich (auf umständliche Art)
         // (wahrscheinlich würde man einfach eine neue Variable für den gecasteten Pointer anlegen)
@@ -90,7 +114,7 @@ int main(int argc, char *argv[]) {
 
     } else {
         // wir sind im Elternprozess -> Thinker
-        close(fd[0]);
+        close(fd[1]); // schließt Schreibende der Pipe
 
         // liest zwei im Kindprozess geschriebene Ints aus dem Shared-Memory-Bereich
         wait(NULL);
@@ -100,26 +124,6 @@ int main(int argc, char *argv[]) {
         if (shmDelete(shmid) > 0) return EXIT_FAILURE;
     }
 
-    // Socket vorbereiten
-    int sock = 0;
-    struct sockaddr_in address;
-    address.sin_family = AF_INET;
-    address.sin_port = htons(PORTNUMBER);
-    char ip[BUF]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
-    hostnameToIp(ip);
-
-    // Socket erstellen
-    if (sock = socket(AF_INET,SOCK_STREAM,0) < 0){
-        printf("\n Error: Socket konnte nicht erstellt werden \n");
-    }
-    inet_aton(ip,&address.sin_addr);
-    if(connect(sock,(struct sockaddr*) &address, sizeof(address)) < 0) {
-        printf("\n Error: Connect schiefgelaufen \n");
-    }
-
-    performConnect(sock);
-
-    close(sock);
 
     return EXIT_SUCCESS;
 }
