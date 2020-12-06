@@ -27,21 +27,23 @@ struct playerInfo createPlayerInfoStruct(int pN, char *name, int ready, int shmi
     return ret;
 }
 
-// entfernt alle für einzelnen Spieler angelegten Shared-Memory-Bereiche; gibt 0 bei Erfolg und -1 im Fehlerfall zurück
-int deletePlayerShm(struct playerInfo *currentPlayer) {
-    if (currentPlayer->nextPlayerPointer != NULL) {
-        printf("Ich will jetzt löschen: %d\n", currentPlayer->ownShmid);
-        int deleteSucess = deletePlayerShm(currentPlayer->nextPlayerPointer) + shmDelete(currentPlayer->ownShmid);
-        if (deleteSucess != 0) {
-            return -1;
-        } else {
-            return 0;
-        }
+/* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
+ * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer;
+ * Eingabeparameter sind ein Pointer auf ein struct playerInfo, ab dem gesucht werden soll (i.d.R. das erste Struct der
+ * Liste) sowie die gewünschte Spielernummer
+ */
+struct playerInfo *getPlayerFromNumber(struct playerInfo *pCurrentPlayer, int targetNumber) {
+    if (pCurrentPlayer->playerNumber == targetNumber) {
+        return pCurrentPlayer;
     } else {
-        printf("Ich will jetzt löschen: %d\n", currentPlayer->ownShmid);
-        return shmDelete(currentPlayer->ownShmid);
+        if (pCurrentPlayer->nextPlayerPointer == NULL) {
+            return NULL;
+        } else {
+            return getPlayerFromNumber(pCurrentPlayer->nextPlayerPointer, targetNumber);
+        }
     }
 }
+
 
 // Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
 int shmCreate(int shmDataSize) {
@@ -82,4 +84,18 @@ int shmDelete(int shmid) {
         perror("Fehler beim Löschen von Shared Memory");
     }
     return deleteSuccess;
+}
+
+// entfernt alle für einzelnen Spieler angelegten Shared-Memory-Bereiche; gibt 0 bei Erfolg und -1 im Fehlerfall zurück
+int deletePlayerShm(struct playerInfo *currentPlayer) {
+    if (currentPlayer->nextPlayerPointer != NULL) {
+        int deleteSucess = deletePlayerShm(currentPlayer->nextPlayerPointer) + shmDelete(currentPlayer->ownShmid);
+        if (deleteSucess != 0) {
+            return -1;
+        } else {
+            return 0;
+        }
+    } else {
+        return shmDelete(currentPlayer->ownShmid);
+    }
 }
