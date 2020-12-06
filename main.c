@@ -45,11 +45,12 @@ void hostnameToIp(char *ipA) {
 
 int main(int argc, char *argv[]) {
 
-    // legt Variablen für Game-ID und Spielernummer an und liest dann Werte dafür von der Kommandozeile ein
+    // legt Variablen für Game-ID, Spielernummer und Pfad der Konfigurationsdatei an
     char gameID[14] = "";
     int playerNumber = 0;
     char *confFilePath = "client.conf";
 
+    // liest Werte für die eben angelegten Variablen von der Kommandozeile ein
     int input;
     while ((input = getopt(argc, argv, "g:p:c:")) != -1) {
         switch (input) {
@@ -69,6 +70,20 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* überprüft die übergebenen Parameter auf Gültigkeit: gameID nicht leer, playerNumber > 0.
+     * (gedacht für direkten Aufruf von ./sysprak-client; für make play gibt es eigenen Hinweis im Makefile) */
+    if (strcmp(gameID, "") == 0) {
+        fprintf(stderr, "Fehler! Spielernummer nicht angegeben oder ungültig.\n");
+        printHelp();
+        return EXIT_FAILURE;
+    }
+    if (playerNumber <= 0) {
+        fprintf(stderr, "Fehler! Spielernummer nicht angegeben oder ungültig.\n");
+        printHelp();
+        return EXIT_FAILURE;
+    }
+
+    // für mich zur Kontrolle, gehört später weg
     printf("Folgende Werte wurden übergeben:\n");
     printf("Game-ID: %s\n", gameID);
     printf("Spielernummer: %d\n", playerNumber);
@@ -78,6 +93,7 @@ int main(int argc, char *argv[]) {
     struct cnfgInfo configInfo = createConfigStruct();
     if (readFromConfFile(&configInfo, confFilePath) == -1) return EXIT_FAILURE;
 
+    // für mich zur Kontrolle, gehört später weg
     printf("Ich habe die Funktion readFromConfFile aufgerufen und die Werte, die in configInfo stehen, sind jetzt:\n");
     printf("gameKindName: %s\n", configInfo.gameKindName);
     printf("hostName: %s\n", configInfo.hostName);
@@ -96,12 +112,14 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    // Aufteilung in zwei Prozesse
     pid_t pid = fork();
     if (pid < 0) {
         perror("Fehler beim Forking");
         return EXIT_FAILURE;
     } else if (pid == 0) {
         // wir sind im Kindprozess -> Connector
+        close(fd[1]); // schließt Schreibende der Pipe
         close(fd[1]); // schließt Schreibende der Pipe
 
         // Socket vorbereiten
