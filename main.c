@@ -77,31 +77,40 @@ int main(int argc, char *argv[]) {
         printHelp();
         return EXIT_FAILURE;
     }
-    if (playerNumber <= 0) {
-        fprintf(stderr, "Fehler! Spielernummer nicht angegeben oder ungültig.\n");
+    if (playerNumber < 0) {
+        fprintf(stderr, "Fehler! Ungültige Spielernummer.\n");
         printHelp();
         return EXIT_FAILURE;
     }
 
-    // für mich zur Kontrolle, gehört später weg
-    printf("Folgende Werte wurden übergeben:\n");
-    printf("Game-ID: %s\n", gameID);
-    printf("Spielernummer: %d\n", playerNumber);
-    printf("Pfad: %s\n", confFilePath);
+//    // für mich zur Kontrolle, gehört später weg
+//    printf("Folgende Werte wurden übergeben:\n");
+//    printf("Game-ID: %s\n", gameID);
+//    printf("Spielernummer: %d\n", playerNumber);
+//    printf("Pfad: %s\n", confFilePath);
 
-    // öffnet confFilePath und schreibt die dortigen Konfigurationswerte in das Struct configInfo
-    struct cnfgInfo configInfo = createConfigStruct();
-    if (readFromConfFile(&configInfo, confFilePath) == -1) return EXIT_FAILURE;
+//    // öffnet confFilePath und schreibt die dortigen Konfigurationswerte in das Struct configInfo
+//    struct cnfgInfo configInfo = createConfigStruct();
+//    if (readFromConfFile(&configInfo, confFilePath) == -1) return EXIT_FAILURE;
+//
+//    // für mich zur Kontrolle, gehört später weg
+//    printf("Ich habe die Funktion readFromConfFile aufgerufen und die Werte, die in configInfo stehen, sind jetzt:\n");
+//    printf("gameKindName: %s\n", configInfo.gameKindName);
+//    printf("hostName: %s\n", configInfo.hostName);
+//    printf("portNumber: %d\n", configInfo.portNumber);
 
-    // für mich zur Kontrolle, gehört später weg
-    printf("Ich habe die Funktion readFromConfFile aufgerufen und die Werte, die in configInfo stehen, sind jetzt:\n");
-    printf("gameKindName: %s\n", configInfo.gameKindName);
-    printf("hostName: %s\n", configInfo.hostName);
-    printf("portNumber: %d\n", configInfo.portNumber);
+//    // erzeugt ein struct GameInfo in einem dafür angelegten Shared-Memory-Bereich
+//    int shmidGeneralInfo = shmCreate(sizeof(struct gameInfo));
+//    struct gameInfo *pGeneralInfo = shmAttach(shmidGeneralInfo);
+//    *pGeneralInfo = createGameInfoStruct();
 
-    // legt einen Shared-Memory-Bereich mit Größe 1000 an
-    int shmid = shmCreate(1000);
-    void *hierIstShmemory = shmAttach(shmid);
+    // legt einen Shared-Memory-Bereich für EIN struct playerInfo an
+    int shmidPlayerInfo = shmCreate(sizeof(struct playerInfo));
+    struct playerInfo *pPlayerInfo = shmAttach(shmidPlayerInfo);
+
+//    // legt einen Shared-Memory-Bereich mit Größe 1000 an
+//    int shmid = shmCreate(1000);
+//    void *hierIstShmemory = shmAttach(shmid);
 
     // Erstellung der Pipe
     int fd[2];
@@ -146,21 +155,57 @@ int main(int argc, char *argv[]) {
 
         close(sock);
 
+        // schreibt die Connector-PID in das Struct mit den gemeinsamen Spielinformationen
+//        (*pGeneralInfo).pidConnector = getpid();
+
+        // aus performConnect werden noch weitere Infos empfangen
+        // diese müssen ebenfalls in das Struct mit den gemeinsamen Spielinformationen geschrieben werden
+
+        // in dieses Struct gehören eigentlich die Informationen zum eigenen Spieler, wie sie in performConnect empfangen werden
+        *pPlayerInfo = createPlayerInfoStruct(1, "Johannes", 1, shmidPlayerInfo);
+
+        int shmidPlayerInfo2 = shmCreate(sizeof(struct playerInfo));
+        struct playerInfo *pPlayerInfo2 = shmAttach(shmidPlayerInfo2);
+        *pPlayerInfo2 = createPlayerInfoStruct(2, "Simon", 1, shmidPlayerInfo2);
+        pPlayerInfo->nextPlayerPointer = pPlayerInfo2;
+        printf("Der Pointer im Connector: %p\n", pPlayerInfo2);
+
+        int shmidPlayerInfo3 = shmCreate(sizeof(struct playerInfo));
+        struct playerInfo *pPlayerInfo3 = shmAttach(shmidPlayerInfo3);
+        *pPlayerInfo3 = createPlayerInfoStruct(3, "Nico", 1, shmidPlayerInfo3);
+        pPlayerInfo2->nextPlayerPointer = pPlayerInfo3;
+
+        sleep(5);
+
+        if (deletePlayerShm(pPlayerInfo) > 0) return EXIT_FAILURE;
+
         // schreibt zwei Ints in den Shared-Memory-Bereich (auf umständliche Art)
         // (wahrscheinlich würde man einfach eine neue Variable für den gecasteten Pointer anlegen)
-        *(int *)hierIstShmemory = 5649754;
-        *((int *)hierIstShmemory + 1) = 1122;
+//        *(int *)hierIstShmemory = 5649754;
+//        *((int *)hierIstShmemory + 1) = 1122;
 
     } else {
         // wir sind im Elternprozess -> Thinker
         close(fd[0]); // schließt Leseende der Pipe
 
+        // schreibt die Thinker-PID in das Struct mit den gemeinsamen Spielinformationen
+//        (*pGeneralInfo).pidThinker = getpid();
+
+        sleep(1);
+        printf("Soweit komme ich: %s\n", pPlayerInfo->playerName);
+        printf("Der Pointer %p\n", pPlayerInfo->nextPlayerPointer);
+        printf("Soweit komme ich: %s\n", pPlayerInfo->nextPlayerPointer->playerName);
+        printf("Soweit komme ich: %s\n", pPlayerInfo->nextPlayerPointer->nextPlayerPointer->playerName);
+
         // liest zwei im Kindprozess geschriebene Ints aus dem Shared-Memory-Bereich
         wait(NULL);
-        printf("Im Shmemory-Bereich steht: %d\n", *(int *)hierIstShmemory);
-        printf("Im Shmemory-Bereich steht auch noch: %d\n", *((int *)hierIstShmemory + 1));
+//        printf("Im Shmemory-Bereich steht: %d\n", *(int *)hierIstShmemory);
+//        printf("Im Shmemory-Bereich steht auch noch: %d\n", *((int *)hierIstShmemory + 1));
 
-        if (shmDelete(shmid) > 0) return EXIT_FAILURE;
+        // Shared-Memory-Bereiche aufräumen
+//        if (shmDelete(shmid) > 0) return EXIT_FAILURE;
+//        if (shmDelete(shmidGeneralInfo) > 0) return EXIT_FAILURE;
+
     }
 
     return EXIT_SUCCESS;

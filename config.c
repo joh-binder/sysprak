@@ -9,12 +9,12 @@
 void printHelp(void) {
     printf("Um das Programm auszuführen, müssen Sie folgende Informationen als Kommandozeilenparameter übergeben:\n");
     printf("-g <gameid>: eine 13-stellige Game-ID\n");
-    printf("-p <playerno>: Ihre gewünschte Spielernummer (1 oder 2)\n");
+    printf("(optional) -p <playerno>: Ihre gewünschte Spielernummer (1 oder 2)\n");
     printf("(optional) -c <path>: Dateipfad zu einer Datei mit Konfigurationsinformationen\n");
     printf("Alternativ verwenden Sie den Aufruf \"make play\" und übergeben die Informationen als Umgebungsvariablen.\n");
 }
 
-// erzeugt ein neues struct cnfgInfos und initialisiert es mit Standardwerten
+// erzeugt ein neues struct cnfgInfo und initialisiert es mit Standardwerten
 struct cnfgInfo createConfigStruct(void) {
     struct cnfgInfo ret;
     strcpy(ret.gameKindName, "");

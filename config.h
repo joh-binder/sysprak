@@ -10,7 +10,7 @@ struct cnfgInfo {
 // Hilfsnachricht zu den geforderten Kommandozeilenparametern
 void printHelp(void);
 
-// erzeugt ein neues struct cnfgInfos und initialisiert es mit Standardwerten
+// erzeugt ein neues struct cnfgInfo und initialisiert es mit Standardwerten
 struct cnfgInfo createConfigStruct(void);
 
 /* nimmt als Parameter ein Pointer auf struct cnfgInfo und einen Dateipfad entgegen;
