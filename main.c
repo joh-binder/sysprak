@@ -9,18 +9,13 @@
 #include <arpa/inet.h>
 
 #include "shmfunctions.h"
+#include "thinkerfunctions.h"
 
 #define GAMEKINDNAME "Bashni"
 #define PORTNUMBER 1357
 #define HOSTNAME "sysprak.priv.lab.nm.ifi.lmu.de"
 #define BUF 256 // für Array mit IP-Adresse
 
-// Hilfsnachricht zu den geforderten Kommandozeilenparametern
-void printHelp(void) {
-    printf("Um das Programm auszuführen, übergeben Sie bitte folgende Informationen als Kommandozeilenparameter:\n");
-    printf("-g <gameid>: eine 13-stellige Game-ID\n");
-    printf("-p <playerno>: Ihre gewünschte Spielernummer (1 oder 2)\n");
-}
 
 // speichert die IP-Adresse von Hostname in punktierter Darstellung in einem char Array ab
 void hostnameToIp(char *ipA) {
@@ -41,87 +36,123 @@ void hostnameToIp(char *ipA) {
 
 int main(int argc, char *argv[]) {
 
-    // legt Variablen für Game-ID und Spielernummer an und liest dann Werte dafür von der Kommandozeile ein
-    char gameID[14] = "";
-    int playerNumber = 0;
-
-    int input;
-    while ((input = getopt(argc, argv, "g:p:")) != -1) {
-        switch (input) {
-            case 'g':
-                strncpy(gameID, optarg, 13);
-                gameID[13] = '\0';
-                break;
-            case 'p':
-                playerNumber = atoi(optarg);
-                break;
-            default:
-                printHelp();
-                break;
-        }
-    }
-
-
-    // legt einen Shared-Memory-Bereich mit Größe 1000 an
-    int shmid = shmCreate(1000);
-    void *hierIstShmemory = shmAttach(shmid);
-
-    // Erstellung der Pipe
-    int fd[2];
-    char pipeBuffer[PIPE_BUF];
-
-    if (pipe(fd) < 0) {
-        perror("Fehler beim Erstellen der Pipe");
-        return EXIT_FAILURE;
-    }
+//    // legt Variablen für Game-ID und Spielernummer an und liest dann Werte dafür von der Kommandozeile ein
+//    char gameID[14] = "";
+//    int playerNumber = 0;
+//
+//    int input;
+//    while ((input = getopt(argc, argv, "g:p:")) != -1) {
+//        switch (input) {
+//            case 'g':
+//                strncpy(gameID, optarg, 13);
+//                gameID[13] = '\0';
+//                break;
+//            case 'p':
+//                playerNumber = atoi(optarg);
+//                break;
+//            default:
+//                printHelp();
+//                break;
+//        }
+//    }
+//
+//
+//    // legt einen Shared-Memory-Bereich mit Größe 1000 an
+//    int shmid = shmCreate(1000);
+//    void *hierIstShmemory = shmAttach(shmid);
+//
+//    // Erstellung der Pipe
+//    int fd[2];
+//    char pipeBuffer[PIPE_BUF];
+//
+//    if (pipe(fd) < 0) {
+//        perror("Fehler beim Erstellen der Pipe");
+//        return EXIT_FAILURE;
+//    }
 
     pid_t pid = fork();
     if (pid < 0) {
         perror("Fehler beim Forking");
         return EXIT_FAILURE;
+
     } else if (pid == 0) {
-        // wir sind im Kindprozess -> Connector
-        close(fd[1]); // schließt Schreibende der Pipe
-
-        // Socket vorbereiten
-        int sock = 0;
-        struct sockaddr_in address;
-        address.sin_family = AF_INET;
-        address.sin_port = htons(PORTNUMBER);
-        char ip[BUF]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
-        hostnameToIp(ip);
-
-        printf("IP lautet: %s\n", ip);
-
-        // Socket erstellen
-        if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0){
-            printf("\n Error: Socket konnte nicht erstellt werden \n");
-        }
-
-        inet_aton(ip,&address.sin_addr);
-        if(connect(sock,(struct sockaddr*) &address, sizeof(address)) < 0) {
-            printf("\n Error: Connect schiefgelaufen \n");
-        }
-
-        // performConnect(sock);
-
-        close(sock);
-
-        // schreibt zwei Ints in den Shared-Memory-Bereich (auf umständliche Art)
-        // (wahrscheinlich würde man einfach eine neue Variable für den gecasteten Pointer anlegen)
-        *(int *)hierIstShmemory = 5649754;
-        *((int *)hierIstShmemory + 1) = 1122;
+//        // wir sind im Kindprozess -> Connector
+//        close(fd[1]); // schließt Schreibende der Pipe
+//
+//        // Socket vorbereiten
+//        int sock = 0;
+//        struct sockaddr_in address;
+//        address.sin_family = AF_INET;
+//        address.sin_port = htons(PORTNUMBER);
+//        char ip[BUF]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
+//        hostnameToIp(ip);
+//
+//        printf("IP lautet: %s\n", ip);
+//
+//        // Socket erstellen
+//        if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+//            printf("\n Error: Socket konnte nicht erstellt werden \n");
+//        }
+//
+//        inet_aton(ip,&address.sin_addr);
+//        if(connect(sock,(struct sockaddr*) &address, sizeof(address)) < 0) {
+//            printf("\n Error: Connect schiefgelaufen \n");
+//        }
+//
+//        // performConnect(sock);
+//
+//        close(sock);
+//
+//        // schreibt zwei Ints in den Shared-Memory-Bereich (auf umständliche Art)
+//        // (wahrscheinlich würde man einfach eine neue Variable für den gecasteten Pointer anlegen)
+//        *(int *)hierIstShmemory = 5649754;
+//        *((int *)hierIstShmemory + 1) = 1122;
 
     } else {
-        // wir sind im Elternprozess -> Thinker
-        close(fd[0]); // schließt Leseende der Pipe
 
-        // liest zwei im Kindprozess geschriebene Ints aus dem Shared-Memory-Bereich
-        wait(NULL);
-        printf("Im Shmemory-Bereich steht: %d\n", *(int *)hierIstShmemory);
-        printf("Im Shmemory-Bereich steht auch noch: %d\n", *((int *)hierIstShmemory + 1));
+//        // wir sind im Elternprozess -> Thinker
+//        close(fd[0]); // schließt Leseende der Pipe
+//
 
-        if (shmDelete(shmid) > 0) return EXIT_FAILURE;
+        tower *board[64];
+        for (int i = 0; i < 64; i++) {
+            tower *pEmptyTower;
+            pEmptyTower = (tower *) malloc(sizeof(tower));
+
+            pEmptyTower->piece = '0';
+            pEmptyTower->next = NULL;
+            board[i] = pEmptyTower;
+        }
+
+        addToSquare(board, codeToCoord("A1"), 'b');
+        addToSquare(board, codeToCoord("A1"), 'w');
+        addToSquare(board, codeToCoord("A1"), 'b');
+
+        printf("%c\n", getTopPiece(board, codeToCoord("A1")));
+        printf("%c\n", getSquare(board, codeToCoord("A1")).next->piece);
+        printf("%c\n", getSquare(board, codeToCoord("A1")).next->next->piece);
+
+        printTopPieces(board);
+
+//        char *lightSquares[] = {"A1", "C1", "E1", "G1", "B2", "D2", "F2", "H2", "A3", "C3", "E3", "G3"};
+//        char *darkSquares[] = {"H8", "F8", "D8", "B8", "G7", "E7", "C7", "A7", "H6", "F6", "D6", "B6"};
+//
+//        for (unsigned long i = 0; i < sizeof(lightSquares)/sizeof(lightSquares[0]); i++) {
+//            setSquare(board, lightSquares[i], "w");
+//        }
+//        for (unsigned long i = 0; i < sizeof(darkSquares)/sizeof(darkSquares[0]); i++) {
+//            setSquare(board, darkSquares[i], "b");
+//        }
+
+
+
+
+//        // liest zwei im Kindprozess geschriebene Ints aus dem Shared-Memory-Bereich
+//        wait(NULL);
+//        printf("Im Shmemory-Bereich steht: %d\n", *(int *)hierIstShmemory);
+//        printf("Im Shmemory-Bereich steht auch noch: %d\n", *((int *)hierIstShmemory + 1));
+//
+//        if (shmDelete(shmid) > 0) return EXIT_FAILURE;
     }
 
 
