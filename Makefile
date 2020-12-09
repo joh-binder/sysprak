@@ -15,7 +15,7 @@ shmfunctions.o: shmfunctions.c shmfunctions.h
 	$(CC) $(CFLAGS) -c $<
 
 play: sysprak-client
-	./sysprak-client -g $(GAME_ID) -p $(PLAYER)
+	./$< -g $(GAME_ID) -p $(PLAYER)
 
 clean:
 	rm -f sysprak-client main.o shmfunctions.o
