@@ -70,6 +70,13 @@ int main(int argc, char *argv[]) {
 //        return EXIT_FAILURE;
 //    }
 
+    int boardShmid = shmCreate(sizeof(tower*) * 64);
+    tower **boardShmemory = (tower **)shmAttach(boardShmid);
+
+    int towersShmid = shmCreate(sizeof(tower) * (32));
+    void *towersShmemory = shmAttach(towersShmid);
+
+
     pid_t pid = fork();
     if (pid < 0) {
         perror("Fehler beim Forking");
@@ -101,58 +108,56 @@ int main(int argc, char *argv[]) {
 //
 //        // performConnect(sock);
 //
-//        close(sock);
-//
-//        // schreibt zwei Ints in den Shared-Memory-Bereich (auf umständliche Art)
-//        // (wahrscheinlich würde man einfach eine neue Variable für den gecasteten Pointer anlegen)
-//        *(int *)hierIstShmemory = 5649754;
-//        *((int *)hierIstShmemory + 1) = 1122;
+
+        // setzt alle Pointer auf dem Brett auf NULL
+        for (int i = 0; i < 64; i++) {
+            boardShmemory[i] = NULL;
+        }
+
+        // setzt die Startbelegung der Spielsteine auf das Brett
+        char *lightSquares[] = {"A1", "C1", "E1", "G1", "B2", "D2", "F2", "H2", "A3", "C3", "E3", "G3"};
+        char *darkSquares[] = {"H8", "F8", "D8", "B8", "G7", "E7", "C7", "A7", "H6", "F6", "D6", "B6"};
+        for (unsigned long i = 0; i < sizeof(lightSquares)/sizeof(lightSquares[0]); i++) {
+            addToSquare(boardShmemory, codeToCoord(lightSquares[i]), 'w', towersShmemory);
+        }
+        for (unsigned long i = 0; i < sizeof(darkSquares)/sizeof(darkSquares[0]); i++) {
+            addToSquare(boardShmemory, codeToCoord(darkSquares[i]), 'b', towersShmemory);
+        }
+
+        // ein paar Züge zur Probe (entsprechen nicht den Bashni-Regeln, sondern einfach von irgendwo woandershin)
+        moveTower(boardShmemory, codeToCoord("A3"), codeToCoord("C5"));
+        beatTower(boardShmemory, codeToCoord("D6"), codeToCoord("C5"), codeToCoord("B4"));
+        beatTower(boardShmemory, codeToCoord("B4"), codeToCoord("A1"), codeToCoord("B5"));
+        beatTower(boardShmemory, codeToCoord("C1"), codeToCoord("B5"), codeToCoord("H4"));
+
+
+        //        close(sock);
 
     } else {
+
+        // druckt Spielfeld aus -> Information kommt im Thinker an
+        sleep(1);
+        printTopPieces(boardShmemory);
+
+        char *str = malloc(sizeof(char)*33);
+        towerToString(str, boardShmemory, codeToCoord("B5"));
+        printf("%s\n", str);
+        free(str);
+
+        str = malloc(sizeof(char)*33);
+        towerToString(str, boardShmemory, codeToCoord("H4"));
+        printf("%s\n", str);
+        free(str);
 
 //        // wir sind im Elternprozess -> Thinker
 //        close(fd[0]); // schließt Leseende der Pipe
 //
 
-        tower *board[64];
-        for (int i = 0; i < 64; i++) {
-            tower *pEmptyTower;
-            pEmptyTower = (tower *) malloc(sizeof(tower));
-
-            pEmptyTower->piece = '0';
-            pEmptyTower->next = NULL;
-            board[i] = pEmptyTower;
-        }
-
-        addToSquare(board, codeToCoord("A1"), 'b');
-        addToSquare(board, codeToCoord("A1"), 'w');
-        addToSquare(board, codeToCoord("A1"), 'b');
-
-        printf("%c\n", getTopPiece(board, codeToCoord("A1")));
-        printf("%c\n", getSquare(board, codeToCoord("A1")).next->piece);
-        printf("%c\n", getSquare(board, codeToCoord("A1")).next->next->piece);
-
-        printTopPieces(board);
-
-//        char *lightSquares[] = {"A1", "C1", "E1", "G1", "B2", "D2", "F2", "H2", "A3", "C3", "E3", "G3"};
-//        char *darkSquares[] = {"H8", "F8", "D8", "B8", "G7", "E7", "C7", "A7", "H6", "F6", "D6", "B6"};
-//
-//        for (unsigned long i = 0; i < sizeof(lightSquares)/sizeof(lightSquares[0]); i++) {
-//            setSquare(board, lightSquares[i], "w");
-//        }
-//        for (unsigned long i = 0; i < sizeof(darkSquares)/sizeof(darkSquares[0]); i++) {
-//            setSquare(board, darkSquares[i], "b");
-//        }
+        wait(NULL);
 
 
-
-
-//        // liest zwei im Kindprozess geschriebene Ints aus dem Shared-Memory-Bereich
-//        wait(NULL);
-//        printf("Im Shmemory-Bereich steht: %d\n", *(int *)hierIstShmemory);
-//        printf("Im Shmemory-Bereich steht auch noch: %d\n", *((int *)hierIstShmemory + 1));
-//
-//        if (shmDelete(shmid) > 0) return EXIT_FAILURE;
+        if (shmDelete(boardShmid) < 0) return EXIT_FAILURE;
+        if (shmDelete(towersShmid) < 0) return EXIT_FAILURE;
     }
 
 
