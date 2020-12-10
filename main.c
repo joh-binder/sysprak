@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 
 #include "shmfunctions.h"
+#include "performConnection.h"
 
 #define GAMEKINDNAME "Bashni"
 #define PORTNUMBER 1357
@@ -103,7 +104,7 @@ int main(int argc, char *argv[]) {
             printf("\n Error: Connect schiefgelaufen \n");
         }
 
-        // performConnect(sock);
+        performConnection(sock, gameID);
 
         close(sock);
 
