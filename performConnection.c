@@ -7,10 +7,14 @@
 #include <unistd.h>
 
 #define MAX_LEN 1024
+#define GAMEKINDNAME "Bashni"
+#define PORTNUMBER 1357
+#define HOSTNAME "sysprak.priv.lab.nm.ifi.lmu.de"
+#define BUF 256 // für Array mit IP-Adresse
 #define CLIENTVERSION "2.0"
 
 char recstring[MAX_LEN];
-
+char bufferstring[MAX_LEN];
 /*
 performConnection benötigt:
     - Game-Name
@@ -25,7 +29,7 @@ void receive_msg(int sock, char *recmsg){
     int testrec;
 
     do {
-      memset(bufferstring, 0, strlen(bufferstring));;
+      memset(bufferstring, 0, strlen(bufferstring));
       testrec = recv(sock, bufferstring, MAX_LEN, 0);
 
       //Testen, ob Bytes empfangen wurden
