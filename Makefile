@@ -1,7 +1,5 @@
 CFLAGS ?= -Wall -Wextra -g
 CC ?= gcc
-GAME_ID ?= ""
-PLAYER ?= 1
 CONFIG ?= "client.conf"
 
 .PHONY: play clean
@@ -22,7 +20,15 @@ config.o: config.c config.h
 	$(CC) $(CFLAGS) -c $<
 
 play: sysprak-client
+ifndef GAME_ID
+	$(error Game-ID fehlt. Geben Sie diese in der Form GAME_ID="..." an)
+else
+ifndef PLAYER
+	./$< -g $(GAME_ID) -c $(CONFIG)
+else
 	./$< -g $(GAME_ID) -p $(PLAYER) -c $(CONFIG)
+endif
+endif
 
 clean:
 	rm -f sysprak-client main.o shmfunctions.o performConnection.o config.o
