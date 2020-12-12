@@ -23,6 +23,10 @@ void *sharedMalloc(void *pointerToStart, int desiredSize, int maxSizeOfBlock) {
     }
 }
 
+void resetShamallocCounter(void) {
+    shmallocCounter = 0;
+}
+
 /* Wandelt einen Buchstabe-Zahl-Code in den Datentyp coordinate um.
  * Bei ungültigen Koordinaten (alles außer A-H und 1-8) sind die Koordinaten -1, -1. */
 coordinate codeToCoord(char code[2]) {

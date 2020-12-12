@@ -130,7 +130,6 @@ int main(int argc, char *argv[]) {
         beatTower(boardShmemory, codeToCoord("B4"), codeToCoord("A1"), codeToCoord("B5"));
         beatTower(boardShmemory, codeToCoord("C1"), codeToCoord("B5"), codeToCoord("H4"));
 
-
         //        close(sock);
 
     } else {
@@ -139,15 +138,15 @@ int main(int argc, char *argv[]) {
         sleep(1);
         printTopPieces(boardShmemory);
 
-        char *str = malloc(sizeof(char)*33);
-        towerToString(str, boardShmemory, codeToCoord("B5"));
-        printf("%s\n", str);
-        free(str);
-
-        str = malloc(sizeof(char)*33);
-        towerToString(str, boardShmemory, codeToCoord("H4"));
-        printf("%s\n", str);
-        free(str);
+//        char *str = malloc(33 * sizeof(char));
+//        memset(str, '0', 33);
+//        towerToString(str, boardShmemory, codeToCoord("B5"));
+//        printf("%s\n", str);
+//
+//        memset(str, '0', 33);
+//        towerToString(str, boardShmemory, codeToCoord("H4"));
+//        printf("%s\n", str);
+//        free(str);
 
 //        // wir sind im Elternprozess -> Thinker
 //        close(fd[0]); // schließt Leseende der Pipe
