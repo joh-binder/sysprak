@@ -1,0 +1,5 @@
+/sysprak-client
+/main.o
+/performConnection.o
+/shmfunctions.o
+/helperfunctions.a
