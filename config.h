@@ -1,17 +1,17 @@
 #ifndef SYSPRAK_CONFIG_H
 #define SYSPRAK_CONFIG_H
 
+#define MAX_LENGTH_GAMEKINDNAME 20
+#define MAX_LENGTH_HOSTNAME 50
+
 struct cnfgInfo {
-    char gameKindName[20];
+    char gameKindName[MAX_LENGTH_GAMEKINDNAME];
     unsigned int portNumber;
-    char hostName[20];
+    char hostName[MAX_LENGTH_HOSTNAME];
 };
 
 // Hilfsnachricht zu den geforderten Kommandozeilenparametern
 void printHelp(void);
-
-// erzeugt ein neues struct cnfgInfo und initialisiert es mit Standardwerten
-struct cnfgInfo createConfigStruct(void);
 
 /* nimmt als Parameter ein Pointer auf struct cnfgInfo und einen Dateipfad entgegen;
 liest die Datei und schreibt die passenden Informationen in das Struct;

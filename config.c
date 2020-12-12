@@ -14,14 +14,6 @@ void printHelp(void) {
     printf("Alternativ verwenden Sie den Aufruf \"make play\" und übergeben die Informationen als Umgebungsvariablen.\n");
 }
 
-// erzeugt ein neues struct cnfgInfo und initialisiert es mit Standardwerten
-struct cnfgInfo createConfigStruct(void) {
-    struct cnfgInfo ret;
-    strcpy(ret.gameKindName, "");
-    ret.portNumber = 0;
-    strcpy(ret.hostName, "");
-    return ret;
-}
 
 /* nimmt als Parameter ein Pointer auf struct cnfgInfo und einen Dateipfad entgegen;
 liest die Datei und schreibt die passenden Informationen in das Struct;
@@ -58,11 +50,11 @@ int readFromConfFile(struct cnfgInfo *pConfigInfo, char *path) {
 
         // je nachdem, was varName ist, soll varValue an eine unterschiedliche Stelle im Struct geschrieben werden
         if (strcmp(varName, "hostName") == 0) {
-            strcpy(pConfigInfo->hostName, varValue);
+            strncpy(pConfigInfo->hostName, varValue, MAX_LENGTH_HOSTNAME-1);
             readHostName = 1;
         }
         if (strcmp(varName, "gameKindName") == 0) {
-            strcpy(pConfigInfo->gameKindName, varValue);
+            strncpy(pConfigInfo->gameKindName, varValue, MAX_LENGTH_GAMEKINDNAME-1);
             readGameKindName = 1;
         }
         if (strcmp(varName, "portNumber") == 0) {

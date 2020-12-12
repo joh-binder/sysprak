@@ -24,7 +24,12 @@ struct playerInfo {
 struct gameInfo createGameInfoStruct(void);
 
 // erzeugt ein neues struct gameInfo und initialisiert es mit übergebenen Werten für playerNumber, playerName und readyOrNot
-struct playerInfo createPlayerInfoStruct(int pN, char *name, int ready, int shmid);
+struct playerInfo createPlayerInfoStruct(int pN, char *name, int ready);
+
+/* Nimmt als Parameter einen Pointer auf den Anfang eines (Shared-Memory-)Speicherblocks, die Blockgröße
+ * und eine gewünschte Größe. Reserviert dann in diesem Speicherblock einen Abschnitt in der gewünschten
+ * Größe und gibt einen Pointer darauf zurück. Gibt NULL zurück, falls nicht genügend Platz vorhanden.*/
+void *playerShmalloc(void *pointerToStart, int desiredSize, int maxBlockSize);
 
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
  * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer;
@@ -47,8 +52,5 @@ int shmDetach(void *shmpointer);
 /* Löscht das Shared-Memory-Segment zu einer gegebenen ID.
  * Gibt 0 im Erfolgsfall und -1 im Fehlerfall zurück. */
 int shmDelete(int shmid);
-
-// entfernt alle für einzelnen Spieler angelegten Shared-Memory-Bereiche; gibt 0 bei Erfolg und -1 im Fehlerfall zurück
-int deletePlayerShm(struct playerInfo *startPlayer);
 
 #endif //SYSPRAK_SHMFUNCTIONS_H

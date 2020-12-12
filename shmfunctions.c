@@ -5,10 +5,11 @@
 
 #include "shmfunctions.h"
 
+static int playerShmallocCounter = 0;
+
 // erzeugt ein neues struct gameInfo und initialisiert es mit Standardwerten
 struct gameInfo createGameInfoStruct(void) {
     struct gameInfo ret;
-    strcpy(ret.gameName, "");
     ret.playerNumber = 0;
     ret.numberOfPlayers = 0;
     ret.pidConnector = 0;
@@ -17,14 +18,27 @@ struct gameInfo createGameInfoStruct(void) {
 }
 
 // erzeugt ein neues struct gameInfo und initialisiert es mit übergebenen Werten für playerNumber, playerName und readyOrNot
-struct playerInfo createPlayerInfoStruct(int pN, char *name, int ready, int shmid) {
+struct playerInfo createPlayerInfoStruct(int pN, char *name, int ready) {
     struct playerInfo ret;
     ret.playerNumber = pN;
     strcpy(ret.playerName, name);
     ret.readyOrNot = ready;
     ret.nextPlayerPointer = NULL;
-    ret.ownShmid = shmid;
     return ret;
+}
+
+/* Nimmt als Parameter einen Pointer auf den Anfang eines (Shared-Memory-)Speicherblocks, die Blockgröße
+ * und eine gewünschte Größe. Reserviert dann in diesem Speicherblock einen Abschnitt in der gewünschten
+ * Größe und gibt einen Pointer darauf zurück. Gibt NULL zurück, falls nicht genügend Platz vorhanden.*/
+void *playerShmalloc(void *pointerToStart, int desiredSize, int maxBlockSize) {
+    if (maxBlockSize < desiredSize + playerShmallocCounter) {
+        fprintf(stderr, "Fehler! Speicherblock ist bereits voll. Kann keinen Speicher mehr zuteilen.\n");
+        return NULL;
+    } else {
+        void *pTemp = pointerToStart + playerShmallocCounter;
+        playerShmallocCounter += desiredSize;
+        return pTemp;
+    }
 }
 
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
@@ -84,18 +98,4 @@ int shmDelete(int shmid) {
         perror("Fehler beim Löschen von Shared Memory");
     }
     return deleteSuccess;
-}
-
-// entfernt alle für einzelnen Spieler angelegten Shared-Memory-Bereiche; gibt 0 bei Erfolg und -1 im Fehlerfall zurück
-int deletePlayerShm(struct playerInfo *currentPlayer) {
-    if (currentPlayer->nextPlayerPointer != NULL) {
-        int deleteSucess = deletePlayerShm(currentPlayer->nextPlayerPointer) + shmDelete(currentPlayer->ownShmid);
-        if (deleteSucess != 0) {
-            return -1;
-        } else {
-            return 0;
-        }
-    } else {
-        return shmDelete(currentPlayer->ownShmid);
-    }
 }
