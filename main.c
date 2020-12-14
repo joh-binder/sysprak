@@ -13,8 +13,8 @@
 #include "performConnection.h"
 #include "config.h"
 
-#define IP_BUF 256 // für Array mit IP-Adresse
-#define PIPE_BUF 256
+#define IP_BUFFER 256 // für Array mit IP-Adresse
+#define PIPE_BUFFER 256
 #define MAX_NUMBER_OF_PLAYERS 10
 
 
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
 
     // Erstellung der Pipe
     int fd[2];
-    char pipeBuffer[PIPE_BUF];
+    char pipeBuffer[PIPE_BUFFER];
 
     if (pipe(fd) < 0) {
         perror("Fehler beim Erstellen der Pipe");
@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
         struct sockaddr_in address;
         address.sin_family = AF_INET;
         address.sin_port = htons(configInfo.portNumber);
-        char ip[IP_BUF]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
+        char ip[IP_BUFFER]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
         hostnameToIp(ip, configInfo.hostName);
 
         // Socket erstellen
@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
             printf("\n Error: Connect schiefgelaufen \n");
         }
 
-        performConnection(sock, wantedGameID, playerNumber, pGeneralInfo, pPlayerInfo, MAX_NUMBER_OF_PLAYERS);
+        performConnection(sock, wantedGameID, playerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo, MAX_NUMBER_OF_PLAYERS);
 
         close(sock);
 
@@ -158,9 +158,9 @@ int main(int argc, char *argv[]) {
         wait(NULL);
 
         // nur zum Testen, ob die Informationen richtig aus dem Shmemory-Bereich gelesen werden können
-        printf("Wir spielen die Partie %s (%s) mit %d Spielern.\n", pGeneralInfo->gameName, pGeneralInfo->gameKindName, pGeneralInfo->numberOfPlayers);
+        printf("Wir spielen die Partie %s des Spiels %s mit %d Spielern.\n", pGeneralInfo->gameName, pGeneralInfo->gameKindName, pGeneralInfo->numberOfPlayers);
         printf("Ich bin %s und spiele als Nummer %d.\n", pPlayerInfo->playerName, pPlayerInfo->playerNumber);
-        printf("Ich bin %s und spiele als Nummer %d.\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber);
+        printf("Der Gegner ist %s und spielt als Nummer %d.\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber);
 
 
         // Shared-Memory-Bereiche aufräumen

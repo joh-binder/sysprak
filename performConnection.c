@@ -9,10 +9,6 @@
 #include "performConnection.h"
 
 #define MAX_LEN 1024
-#define GAMEKINDNAME "Bashni"
-#define PORTNUMBER 1357
-#define HOSTNAME "sysprak.priv.lab.nm.ifi.lmu.de"
-#define BUF 256 // für Array mit IP-Adresse
 #define CLIENTVERSION "2.0"
 
 char recstring[MAX_LEN];
@@ -102,7 +98,7 @@ void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer
     printf("=========================================\n");
 }
 
-void performConnection(int sock, char *gameID, int playerN, struct gameInfo *pGame, struct playerInfo *pPlayer, int maxNumPlayersInShmem) {
+void performConnection(int sock, char *gameID, int playerN, char* gamekindclient, struct gameInfo *pGame, struct playerInfo *pPlayer, int maxNumPlayersInShmem) {
 
     char gamekindserver[MAX_LEN];
     char gamename[MAX_LEN];
@@ -142,7 +138,7 @@ void performConnection(int sock, char *gameID, int playerN, struct gameInfo *pGa
         }
     }
 
-    if (strcmp(gamekindserver, "Bashni") == 0) {
+    if (strcmp(gamekindserver, gamekindclient) == 0) {
         if (playerN == -1) {
             sprintf(buffer, "PLAYER\n");
             send_msg(sock, buffer);
@@ -152,7 +148,7 @@ void performConnection(int sock, char *gameID, int playerN, struct gameInfo *pGa
             send_msg(sock, buffer);
         }
     } else {
-        fprintf(stderr, "Fehler! Falsche Spielart. Spiel des Clients: %s. Spiel des Servers: %s. Client wird beendet.\n", GAMEKINDNAME, gamekindserver);
+        fprintf(stderr, "Fehler! Falsche Spielart. Spiel des Clients: %s. Spiel des Servers: %s. Client wird beendet.\n", gamekindclient, gamekindserver);
         close(sock);
         exit(EXIT_FAILURE);
     }
