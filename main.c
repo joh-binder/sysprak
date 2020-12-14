@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
     tower **boardShmemory = (tower **)shmAttach(boardShmid);
 
     int towersShmid = shmCreate(sizeof(tower) * (32));
-    void *towersShmemory = shmAttach(towersShmid);
+    tower *towersShmemory = shmAttach(towersShmid);
 
 
     pid_t pid = fork();
@@ -129,6 +129,7 @@ int main(int argc, char *argv[]) {
         beatTower(boardShmemory, codeToCoord("D6"), codeToCoord("C5"), codeToCoord("B4"));
         beatTower(boardShmemory, codeToCoord("B4"), codeToCoord("A1"), codeToCoord("B5"));
         beatTower(boardShmemory, codeToCoord("C1"), codeToCoord("B5"), codeToCoord("H4"));
+
 
         //        close(sock);
 

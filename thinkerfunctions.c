@@ -4,7 +4,7 @@
 
 #include "thinkerfunctions.h"
 
-static int shmallocCounter = 0;
+static int towerShmallocCounter = 0;
 
 /* Setzt voraus, dass ein Speicherblock reserviert ist. Nimmt als Parameter einen Pointer auf den Anfang dieses
  * Speicherblocks und die Blockgröße; außerdem eine Wunschgröße. Gibt dann einen Pointer auf einen Abschnitt
@@ -13,18 +13,19 @@ static int shmallocCounter = 0;
  *
  * [Beachte: Pro Programmaufruf kann diese Methode nur für die Verwaltung eines (1) Speicherblocks benutzt werden.]
  */
-void *sharedMalloc(void *pointerToStart, int desiredSize, int maxSizeOfBlock) {
-    if (shmallocCounter + desiredSize > maxSizeOfBlock) {
-        fprintf(stderr, "Fehler! Nicht genügend Platz im Shared-Memory-Bereich.\n");
-        return NULL;
+tower *towerShmalloc(tower *pointerToStart, unsigned long maxSizeOfBlock) {
+    if (maxSizeOfBlock < (towerShmallocCounter + 1) * sizeof(tower)) {
+        fprintf(stderr, "Fehler! Speicherblock ist bereits voll. Kann keinen Speicher mehr zuteilen.\n");
+        return (tower *)NULL;
     } else {
-        shmallocCounter += desiredSize;
-        return pointerToStart + shmallocCounter - desiredSize;
+        tower *pTemp = pointerToStart + towerShmallocCounter;
+        towerShmallocCounter += 1;
+        return pTemp;
     }
 }
 
 void resetShamallocCounter(void) {
-    shmallocCounter = 0;
+    towerShmallocCounter = 0;
 }
 
 /* Wandelt einen Buchstabe-Zahl-Code in den Datentyp coordinate um.
@@ -147,12 +148,12 @@ void printTopPieces(tower **pBoard) {
 /* Erzeugt einen neuen tower/Spielstein und setzt ihn auf das Spielbrett. Verlangt dazu als Parameter das
  * Spielbrett, eine Zielkoordinate, die Art des Spielsteins (als Char) und einen Pointer auf den
  * Anfangsbereich des (Gesamt-)Speicherblocks, in dem der neue tower gespeichert wird. */
-void addToSquare(tower **board, coordinate c, char piece, void *pointerToShmalloc) {
+void addToSquare(tower **board, coordinate c, char piece, tower *pointerToShmalloc) {
     if (c.xCoord == -1 || c.yCoord == -1) {
         fprintf(stderr, "Fehler! Ungültige Koordinaten.\n");
     } else {
         tower *pNewTower;
-        pNewTower = (tower *) sharedMalloc(pointerToShmalloc, sizeof(tower), 32*sizeof(tower));
+        pNewTower = towerShmalloc(pointerToShmalloc, 32*sizeof(tower));
 
         pNewTower->piece = piece;
         pNewTower->next = getPointerToSquare(board, c);

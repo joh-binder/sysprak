@@ -18,7 +18,7 @@ typedef struct tow {
  *
  * [Beachte: Pro Programmaufruf kann diese Methode nur für die Verwaltung eines (1) Speicherblocks benutzt werden.]
  */
-void *sharedMalloc(void *pointerToStart, int desiredSize, int maxSizeOfBlock);
+tower *towerShmalloc(tower *pointerToStart, unsigned long maxSizeOfBlock);
 
 void resetShamallocCounter(void);
 
@@ -44,7 +44,7 @@ void printTopPieces(tower *board[64]);
 /* Erzeugt einen neuen tower/Spielstein und setzt ihn auf das Spielbrett. Verlangt dazu als Parameter das
  * Spielbrett, eine Zielkoordinate, die Art des Spielsteins (als Char) und einen Pointer auf den
  * Anfangsbereich des (Gesamt-)Speicherblocks, in dem der neue tower gespeichert wird. */
-void addToSquare(tower **board, coordinate c, char piece, void *pointerToShmalloc);
+void addToSquare(tower **board, coordinate c, char piece, tower *pointerToShmalloc);
 
 /* Verschiebt auf einem gegebenen Array von Pointern auf tower (=einem Spielbrett) den Turm, der an einer
  * gegebenen Koordinate steht, an eine andere Koordinate. Druckt eine Fehlermeldung, wenn das Ursprungsfeld
