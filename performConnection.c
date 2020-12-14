@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <stdbool.h>
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
+
+#include "performConnection.h"
 
 #define MAX_LEN 1024
 #define GAMEKINDNAME "Bashni"
@@ -13,24 +15,19 @@
 #define BUF 256 // für Array mit IP-Adresse
 #define CLIENTVERSION "2.0"
 
+
 char recstring[MAX_LEN];
 char bufferstring[MAX_LEN];
-/*
-performConnection benötigt:
-    - Game-Name
-    - Mitspielername
-    - Mitspieleranzahl
-    - Bereit
-*/
 
 void receive_msg(int sock, char *recmsg){
 
     int shiftInRecmsg = 0;
     int testrec;
 
+    memset(bufferstring, 0, strlen(bufferstring));
+
     do {
-      memset(bufferstring, 0, strlen(bufferstring));
-      testrec = recv(sock, bufferstring, MAX_LEN, 0);
+      testrec = recv(sock, bufferstring, 1, 0);
 
       //Testen, ob Bytes empfangen wurden
       if(testrec < 0){
@@ -49,10 +46,10 @@ void receive_msg(int sock, char *recmsg){
     } while (bufferstring[testrec-1] != '\n');
 
     //Entfernen von \n
-    recstring[shiftInRecmsg-1] = '\0';
+    recmsg[shiftInRecmsg-1] = '\0';
 
     //Nur zum Testen eingebaut
-    printf("%s\n", recmsg);
+    // printf("recmsg ist: %s\n", recmsg);
 
 
     if(strlen(recmsg) > 1 && *recmsg == '-'){
@@ -79,20 +76,42 @@ void receive_msg(int sock, char *recmsg){
 }
 
 //Client Nachricht senden
-void send_msg(int sock, char *sendmsg){
+void send_msg(int sock, char *sendmsg) {
     int bytesmsg = strlen(sendmsg);
     int bytessend = send(sock, sendmsg, bytesmsg, 0);
 
-    if(bytesmsg != bytessend){
+    if (bytesmsg != bytessend) {
         fprintf(stderr, "Fehler! Bytes der zu sendenden Nachricht: %d, aber gesendete Bytes: %d", bytesmsg, bytessend);
     }
 }
 
-void performConnection(int sock, char *gameID, int playerN){
+void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer, struct tempPlayerInfo *oppInfo) {
+    printf("=========================================\n");
+    printf("Ihr spielt: %s\n", gameKind);
+    printf("Die ID eures Spiels lautet: %s\n", gameID);
+    printf("Du bist: %s\n", playerName);
+    printf("Die Gesamtanzahl an Spielern ist: %d\n", totalPlayer);
+    if (totalPlayer > 2) printf("Informationen zu den Gegnern:\n");
+    else printf("Informationen zum Gegner:\n");
+    for (int i = 0; i < totalPlayer - 1; i++) {
+      printf("Gegner %d hat die Nummer: %d\n", i + 1, oppInfo[i].playerNumber);
+      printf("Gegner %d heißt: %s\n", i + 1, oppInfo[i].playerName);
+      if (oppInfo[i].readyOrNot) printf("Gegner %d ist bereit.\n", i + 1);
+      else printf("Gegner %d ist nicht bereit.\n", i + 1);
+    }
+    printf("=========================================\n");
+}
+
+void performConnection(int sock, char *gameID, int playerN) {
 
     char gamekindserver[MAX_LEN];
+    char gamename[MAX_LEN];
+    char playerName[MAX_LEN];
+    char oppName[MAX_LEN];
+    char teststring[MAX_LEN];
+    int totalplayer, playernumber;
 
-    if(sock <= 0){
+    if (sock <= 0) {
         perror("Fehler! Socket konnte nicht erstellt werden.\n");
     }
 
@@ -105,30 +124,95 @@ void performConnection(int sock, char *gameID, int playerN){
 
     //Empfängt die Nachricht, ob der Server die Client Version akzeptiert hat
     receive_msg(sock, recstring);
-    
+
 
     //Schickt dem Server die Game ID
     sprintf(buffer, "ID %s\n", gameID);
-    
+
     //strcpy(gamekindserver, buffer + 10);
     send_msg(sock, buffer);
 
     //Empfängt bei valider Game ID die Art des Spieles vom Server
     receive_msg(sock, recstring);
-    strcpy(gamekindserver, recstring + 10);
 
-    //reduziert die Server Nachricht auf "PLAYING " mit dem gamekind
-    recstring[16] = '\0';
+    //reduziert die Server Nachricht auf gamekind
+    strncpy(gamekindserver, recstring + 10, MAX_LEN);
 
-    if(strcmp(recstring + 2, "PLAYING Bashni") == 0){
-        sprintf(buffer, "PLAYER %d\n", playerN);
-        send_msg(sock, buffer);
-    }else{
+    for (int i = 0; i <= strlen(gamekindserver); i++) {
+        if (i == '\n') {
+            gamekindserver[i-4] = '\0';
+        }
+    }
+
+    if (strcmp(gamekindserver, "Bashni") == 0) {
+        if (playerN == -1) {
+            sprintf(buffer, "PLAYER\n");
+            send_msg(sock, buffer);
+
+        } else {
+            sprintf(buffer, "PLAYER %d\n", playerN);
+            send_msg(sock, buffer);
+        }
+    } else {
         fprintf(stderr, "Fehler! Falsche Spielart. Spiel des Clients: %s. Spiel des Servers: %s. Client wird beendet.\n", GAMEKINDNAME, gamekindserver);
         close(sock);
         exit(EXIT_FAILURE);
     }
 
+    // Empfängt den Namen des Spiels
     receive_msg(sock, recstring);
+    strncpy(gamename, recstring+2, MAX_LEN-1);
+
+    // Empfängt die Zeile "+ YOU <<Mitspielernummer>> <<Mitspielername>>"
+    receive_msg(sock, recstring);
+    strcpy(playerName, recstring + 8);
+
+    // Empfängt die Zeile "+ TOTAL Mitspieleranzahl"
+    receive_msg(sock, recstring);
+    if (sscanf(recstring+2, "%*[^ ] %d", &totalplayer) != 1) {
+      fprintf(stderr, "Fehler beim Verarbeiten der Mitspieleranzahl\n");
+      close(sock);
+      exit(EXIT_FAILURE);
+    }
+
+    struct tempPlayerInfo oppInfo[totalplayer-1];
+
+    for (int i = 0; i < totalplayer-1; i++) {
+
+      receive_msg(sock, recstring); // in recstring steht jetzt "+ <<Mitspielernummer>> <<Mitspielername>> <<Bereit>>"
+
+      // trennt am Leerzeichen nach Mitspielernummer; Mitspielernummer wird in playerNumber geschrieben; alles dahinter zurück in recstring
+      if (sscanf(recstring+2, "%d %[^\n]", &oppInfo[i].playerNumber, recstring) != 2) {
+        fprintf(stderr, "Fehler beim Verarbeiten von Mitspielerinformationen\n");
+        close(sock);
+        exit(EXIT_FAILURE);
+      }
+
+      // schreibt recstring außer die letzten zwei Zeichen nach playerName
+      strncpy(oppInfo[i].playerName, recstring, strlen(recstring)-2);
+      oppInfo[i].playerName[strlen(recstring)-2] = '\0';
+
+      // betrachten noch das letzte Zeichen (= Bereit)
+      if (recstring[strlen(recstring)-1] == '0') {
+        oppInfo[i].readyOrNot = false;
+      } else if (recstring[strlen(recstring)-1] == '1') {
+        oppInfo[i].readyOrNot = true;
+      } else {
+        fprintf(stderr, "Fehler beim Verarbeiten von Mitspielerinformationen: Bereit-Wert konnte nicht interpretiert werden\n");
+        close(sock);
+        exit(EXIT_FAILURE);
+      }
+
+    }
+
+    receive_msg(sock, recstring);
+    if (strcmp(recstring, "+ ENDPLAYERS") != 0) {
+      fprintf(stderr, "Fehler! Mehr Spieler-Infos empfangen als erwartet. Client wird beendet.\n");
+      close(sock);
+      exit(EXIT_FAILURE);
+    }
+
+    prettyPrint(gamekindserver, gameID, playerName, totalplayer, oppInfo);
+
 
 }
