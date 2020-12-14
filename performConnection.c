@@ -15,9 +15,9 @@
 #define BUF 256 // für Array mit IP-Adresse
 #define CLIENTVERSION "2.0"
 
-
 char recstring[MAX_LEN];
 char bufferstring[MAX_LEN];
+
 
 void receive_msg(int sock, char *recmsg){
 
@@ -52,20 +52,20 @@ void receive_msg(int sock, char *recmsg){
     // printf("recmsg ist: %s\n", recmsg);
 
 
-    if(strlen(recmsg) > 1 && *recmsg == '-'){
+    if (strlen(recmsg) > 1 && *recmsg == '-') {
 
         //Fehlerbehandlung bei falschen Angaben
-        if(strcmp(recmsg + 2, "TIMEOUT Be faster next time") == 0){
+        if (strcmp(recmsg + 2, "TIMEOUT Be faster next time") == 0) {
             fprintf(stderr, "Fehler! Zu langsam. Versuche beim nächsten Mal schnneller zu sein. (Server: %s)\n", recmsg + 2);
-        }else if(strcmp(recmsg + 2, "Not a valid game ID") == 0){
+        } else if (strcmp(recmsg + 2, "Not a valid game ID") == 0) {
             fprintf(stderr, "Fehler! Keine zulässige Game ID. (Server: %s)\n", recmsg + 2);
-        }else if(strcmp(recmsg + 2, "Game does not exist") == 0){
+        } else if (strcmp(recmsg + 2, "Game does not exist") == 0) {
             fprintf(stderr, "Fehler! Dieses Spiel existiert nicht. (Server: %s)\n", recmsg + 2);
-        }else if(strcmp(recmsg + 2, "No free player") == 0){
+        } else if (strcmp(recmsg + 2, "No free player") == 0) {
             fprintf(stderr, "Fehler! Spieler ist nicht verfügbar. (Server: %s)\n", recmsg + 2);
-        }else if(strcmp(recmsg + 2, "Client Version does not match server Version") == 0){
+        } else if (strcmp(recmsg + 2, "Client Version does not match server Version") == 0) {
             fprintf(stderr, "Fehler! Die Client Version und Server Version stimmen nicht überein. (Server: %s)\n", recmsg + 2);
-        }else{
+        } else {
             fprintf(stderr, "Es ist ein unerwarteter Fehler aufgetreten. (Server: %s)\n", recmsg + 2);
         }
 
@@ -102,14 +102,12 @@ void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer
     printf("=========================================\n");
 }
 
-void performConnection(int sock, char *gameID, int playerN) {
+void performConnection(int sock, char *gameID, int playerN, struct gameInfo *pGame, struct playerInfo *pPlayer, int maxNumPlayersInShmem) {
 
     char gamekindserver[MAX_LEN];
     char gamename[MAX_LEN];
     char playerName[MAX_LEN];
-    char oppName[MAX_LEN];
-    char teststring[MAX_LEN];
-    int totalplayer, playernumber;
+    int totalplayer, ownPlayerNumber;
 
     if (sock <= 0) {
         perror("Fehler! Socket konnte nicht erstellt werden.\n");
@@ -138,7 +136,7 @@ void performConnection(int sock, char *gameID, int playerN) {
     //reduziert die Server Nachricht auf gamekind
     strncpy(gamekindserver, recstring + 10, MAX_LEN);
 
-    for (int i = 0; i <= strlen(gamekindserver); i++) {
+    for (unsigned long i = 0; i <= strlen(gamekindserver); i++) {
         if (i == '\n') {
             gamekindserver[i-4] = '\0';
         }
@@ -165,7 +163,11 @@ void performConnection(int sock, char *gameID, int playerN) {
 
     // Empfängt die Zeile "+ YOU <<Mitspielernummer>> <<Mitspielername>>"
     receive_msg(sock, recstring);
-    strcpy(playerName, recstring + 8);
+    if (sscanf(recstring+6, "%d %[^\n]", &ownPlayerNumber, playerName) != 2) {
+        fprintf(stderr, "Fehler beim Verarbeiten der eigenen Spielerinformationen\n");
+        close(sock);
+        exit(EXIT_FAILURE);
+    }
 
     // Empfängt die Zeile "+ TOTAL Mitspieleranzahl"
     receive_msg(sock, recstring);
@@ -213,6 +215,45 @@ void performConnection(int sock, char *gameID, int playerN) {
     }
 
     prettyPrint(gamekindserver, gameID, playerName, totalplayer, oppInfo);
+
+    // schreibt die empfangenen Daten in den Shared-Memory-Bereich
+    // zuerst die allgemeinen Spielinfos
+    *pGame = createGameInfoStruct();
+    strncpy(pGame->gameKindName, gamekindserver, MAX_LENGTH_NAMES);
+    strncpy(pGame->gameName, gamename, MAX_LENGTH_NAMES);
+    pGame->numberOfPlayers = totalplayer;
+
+    // testen, ob der Shmemory-Bereich überhaupt groß genug für alle Spieler ist
+    if (totalplayer > maxNumPlayersInShmem) {
+        fprintf(stderr, "Fehler! Im Shared-Memory-Bereich ist nicht genug Platz, um die Informationen für alle Spieler abzuspeichern.\n");
+        close(sock);
+        exit(EXIT_FAILURE);
+    }
+
+    // eigene Spielerinfos abspeichern
+    struct playerInfo *pFirstPlayer = playerShmalloc(pPlayer ,maxNumPlayersInShmem * sizeof(struct gameInfo));
+    if (pFirstPlayer == (struct playerInfo *)NULL) {
+        fprintf(stderr, "Fehler bei der Zuteilung von Shared Memory für die eigenen Spielerinfos.\n");
+        close(sock);
+        exit(EXIT_FAILURE);
+    }
+    *pFirstPlayer = createPlayerInfoStruct(ownPlayerNumber, playerName, true);
+
+    // andere Spielerinfos abspeichern -> als Schleife, damit es auch für Spiele mit mehr als zwei Spielern funktioniert
+    struct playerInfo *pPreviousPlayer = pFirstPlayer;
+    struct playerInfo *pCurrentPlayer;
+
+    for (int i = 0; i < totalplayer-1; i++) {
+        pCurrentPlayer = playerShmalloc(pPlayer, maxNumPlayersInShmem * sizeof(struct gameInfo));
+        if (pCurrentPlayer == (struct playerInfo *)NULL) {
+            fprintf(stderr, "Fehler bei der Zuteilung von Shared Memory für Infos eines anderen Spielers.\n");
+            close(sock);
+            exit(EXIT_FAILURE);
+        }
+        *pCurrentPlayer = createPlayerInfoStruct(oppInfo[0].playerNumber, oppInfo[0].playerName, oppInfo[0].readyOrNot);
+        pPreviousPlayer->nextPlayerPointer = pCurrentPlayer;
+        pPreviousPlayer = pCurrentPlayer;
+    }
 
 
 }

@@ -14,7 +14,7 @@
 #include "config.h"
 
 #define IP_BUF 256 // für Array mit IP-Adresse
-#define PIP_BUF 256
+#define PIPE_BUF 256
 #define MAX_NUMBER_OF_PLAYERS 10
 
 
@@ -39,8 +39,7 @@ void hostnameToIp(char *ipA, char *hostname) {
 int main(int argc, char *argv[]) {
 
     // legt Variablen für Game-ID, Spielernummer und Pfad der Konfigurationsdatei an
-    //char *gameID = NULL;
-    char gameID[14];
+    char wantedGameID[14];
     int playerNumber = 0;
     char *confFilePath = "client.conf";
 
@@ -49,9 +48,8 @@ int main(int argc, char *argv[]) {
     while ((input = getopt(argc, argv, "g:p:c:")) != -1) {
         switch (input) {
             case 'g':
-                // gameID = optarg;
-                 strncpy(gameID, optarg, 13);
-                 gameID[13] = '\0';
+                 strncpy(wantedGameID, optarg, 13);
+                 wantedGameID[13] = '\0';
                 break;
             case 'p':
                 playerNumber = atoi(optarg);
@@ -65,8 +63,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // überprüft die übergebenen Parameter auf Gültigkeit: gameID nicht leer, playerNumber > 0
-    if (strcmp(gameID, "") == 0) {
+    // überprüft die übergebenen Parameter auf Gültigkeit: wantedGameID nicht leer, playerNumber > 0
+    if (strcmp(wantedGameID, "") == 0) {
         fprintf(stderr, "Fehler! Spielernummer nicht angegeben oder ungültig.\n");
         printHelp();
         return EXIT_FAILURE;
@@ -76,28 +74,28 @@ int main(int argc, char *argv[]) {
         printHelp();
         return EXIT_FAILURE;
     }
+    playerNumber--; // übergebene Spielernummern sind 1-2, aber der Server will 0-1
 
-    // für mich zur Kontrolle, gehört später weg
-    printf("Folgende Werte wurden übergeben:\n");
-    printf("Game-ID: %s\n", gameID);
-    printf("Spielernummer: %d\n", playerNumber);
-    printf("Pfad: %s\n", confFilePath);
+//    // für mich zur Kontrolle, gehört später weg
+//    printf("Folgende Werte wurden übergeben:\n");
+//    printf("Gewünschte Game-ID: %s\n", wantedGameID);
+//    printf("Spielernummer: %d\n", playerNumber);
+//    printf("Pfad: %s\n", confFilePath);
 
 
     // öffnet confFilePath und schreibt die dortigen Konfigurationswerte in das Struct configInfo
     struct cnfgInfo configInfo;
     if (readFromConfFile(&configInfo, confFilePath) == -1) return EXIT_FAILURE;
 
-    // für mich zur Kontrolle, gehört später weg
-    printf("Ich habe die Funktion readFromConfFile aufgerufen und die Werte, die in configInfo stehen, sind jetzt:\n");
-    printf("gameKindName: %s\n", configInfo.gameKindName);
-    printf("hostName: %s\n", configInfo.hostName);
-    printf("portNumber: %d\n", configInfo.portNumber);
+//    // für mich zur Kontrolle, gehört später weg
+//    printf("Ich habe die Funktion readFromConfFile aufgerufen und die Werte, die in configInfo stehen, sind jetzt:\n");
+//    printf("gameKindName: %s\n", configInfo.gameKindName);
+//    printf("hostName: %s\n", configInfo.hostName);
+//    printf("portNumber: %d\n", configInfo.portNumber);
 
     // erzeugt ein struct GameInfo in einem dafür angelegten Shared-Memory-Bereich
     int shmidGeneralInfo = shmCreate(sizeof(struct gameInfo));
     struct gameInfo *pGeneralInfo = shmAttach(shmidGeneralInfo);
-    *pGeneralInfo = createGameInfoStruct();
 
     // legt einen Shared-Memory-Bereich für die struct playerInfos an
     int shmidPlayerInfo = shmCreate(MAX_NUMBER_OF_PLAYERS * sizeof(struct playerInfo));
@@ -109,6 +107,8 @@ int main(int argc, char *argv[]) {
 
     if (pipe(fd) < 0) {
         perror("Fehler beim Erstellen der Pipe");
+        shmDelete(shmidGeneralInfo);
+        shmDelete(shmidPlayerInfo);
         return EXIT_FAILURE;
     }
 
@@ -116,6 +116,8 @@ int main(int argc, char *argv[]) {
     pid_t pid = fork();
     if (pid < 0) {
         perror("Fehler beim Forking");
+        shmDelete(shmidGeneralInfo);
+        shmDelete(shmidPlayerInfo);
         return EXIT_FAILURE;
     } else if (pid == 0) {
         // wir sind im Kindprozess -> Connector
@@ -142,27 +144,7 @@ int main(int argc, char *argv[]) {
             printf("\n Error: Connect schiefgelaufen \n");
         }
 
-        performConnection(sock, gameID);
-
-        // Folgendes passiert eigentlich in performConnection, wenn die Informationen vom Server kommen
-
-        // eigene Spielerinfos abspeichern
-//        struct playerInfo *pFirstPlayer = playerShmalloc(pPlayerInfo, sizeof(struct gameInfo),
-//                                                         MAX_NUMBER_OF_PLAYERS * sizeof(struct gameInfo));
-//        *pFirstPlayer = createPlayerInfoStruct(1, "Johannes", false);
-//
-//        struct playerInfo *pPreviousPlayer = pFirstPlayer;
-//        struct playerInfo *pCurrentPlayer;
-//
-        // Infos zur anderen Spielern abspeichern
-//        while (es gibt noch Spieler) {
-//            pCurrentPlayer = playerShmalloc(pPlayerInfo, sizeof(struct gameInfo), MAX_NUMBER_OF_PLAYERS * sizeof(struct gameInfo));
-//            *pCurrentPlayer = createPlayerInfoStruct(2, "Simon", true);
-//            pPreviousPlayer->nextPlayerPointer = pCurrentPlayer;
-//
-//            pPreviousPlayer = pCurrentPlayer;
-//        }
-
+        performConnection(sock, wantedGameID, playerNumber, pGeneralInfo, pPlayerInfo, MAX_NUMBER_OF_PLAYERS);
 
         close(sock);
 
@@ -175,10 +157,10 @@ int main(int argc, char *argv[]) {
 
         wait(NULL);
 
-//        // Nur zum Testen, ob Spielerinfos wirklich im anderene Prozess lesbar sind
-//        printf("%s\n", getPlayerFromNumber(pPlayerInfo, 1)->playerName);
-//        printf("%s\n", getPlayerFromNumber(pPlayerInfo, 2)->playerName);
-//        printf("%s\n", getPlayerFromNumber(pPlayerInfo, 3)->playerName);
+        // nur zum Testen, ob die Informationen richtig aus dem Shmemory-Bereich gelesen werden können
+        printf("Wir spielen die Partie %s (%s) mit %d Spielern.\n", pGeneralInfo->gameName, pGeneralInfo->gameKindName, pGeneralInfo->numberOfPlayers);
+        printf("Ich bin %s und spiele als Nummer %d.\n", pPlayerInfo->playerName, pPlayerInfo->playerNumber);
+        printf("Ich bin %s und spiele als Nummer %d.\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber);
 
 
         // Shared-Memory-Bereiche aufräumen

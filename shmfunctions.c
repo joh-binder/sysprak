@@ -10,7 +10,6 @@ static int playerShmallocCounter = 0;
 // erzeugt ein neues struct gameInfo und initialisiert es mit Standardwerten
 struct gameInfo createGameInfoStruct(void) {
     struct gameInfo ret;
-    ret.playerNumber = 0;
     ret.numberOfPlayers = 0;
     ret.pidConnector = 0;
     ret.pidThinker = 0;
@@ -21,7 +20,7 @@ struct gameInfo createGameInfoStruct(void) {
 struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready) {
     struct playerInfo ret;
     ret.playerNumber = pN;
-    strcpy(ret.playerName, name);
+    strncpy(ret.playerName, name, MAX_LENGTH_NAMES);
     ret.readyOrNot = ready;
     ret.nextPlayerPointer = NULL;
     return ret;
@@ -30,13 +29,13 @@ struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready) {
 /* Nimmt als Parameter einen Pointer auf den Anfang eines (Shared-Memory-)Speicherblocks, die Blockgröße
  * und eine gewünschte Größe. Reserviert dann in diesem Speicherblock einen Abschnitt in der gewünschten
  * Größe und gibt einen Pointer darauf zurück. Gibt NULL zurück, falls nicht genügend Platz vorhanden.*/
-void *playerShmalloc(void *pointerToStart, int desiredSize, int maxBlockSize) {
-    if (maxBlockSize < desiredSize + playerShmallocCounter) {
+struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart, unsigned long maxBlockSize) {
+    if (maxBlockSize < (playerShmallocCounter + 1) * sizeof(struct playerInfo)) {
         fprintf(stderr, "Fehler! Speicherblock ist bereits voll. Kann keinen Speicher mehr zuteilen.\n");
-        return NULL;
+        return (struct playerInfo *)NULL;
     } else {
-        void *pTemp = pointerToStart + playerShmallocCounter;
-        playerShmallocCounter += desiredSize;
+        struct playerInfo *pTemp = pointerToStart + playerShmallocCounter;
+        playerShmallocCounter += 1;
         return pTemp;
     }
 }

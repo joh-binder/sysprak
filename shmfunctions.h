@@ -5,8 +5,8 @@
 #define MAX_LENGTH_NAMES 256
 
 struct gameInfo {
+    char gameKindName[MAX_LENGTH_NAMES];
     char gameName[MAX_LENGTH_NAMES];
-    int playerNumber;
     unsigned int numberOfPlayers;
     pid_t pidConnector;
     pid_t pidThinker;
@@ -29,7 +29,7 @@ struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready);
 /* Nimmt als Parameter einen Pointer auf den Anfang eines (Shared-Memory-)Speicherblocks, die Blockgröße
  * und eine gewünschte Größe. Reserviert dann in diesem Speicherblock einen Abschnitt in der gewünschten
  * Größe und gibt einen Pointer darauf zurück. Gibt NULL zurück, falls nicht genügend Platz vorhanden.*/
-void *playerShmalloc(void *pointerToStart, int desiredSize, int maxBlockSize);
+struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart, unsigned long maxBlockSize);
 
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
  * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer;
