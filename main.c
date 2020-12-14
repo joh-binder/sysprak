@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
         // eigene Spielerinfos abspeichern
 //        struct playerInfo *pFirstPlayer = playerShmalloc(pPlayerInfo, sizeof(struct gameInfo),
 //                                                         MAX_NUMBER_OF_PLAYERS * sizeof(struct gameInfo));
-//        *pFirstPlayer = createPlayerInfoStruct(1, "Johannes", 0);
+//        *pFirstPlayer = createPlayerInfoStruct(1, "Johannes", false);
 //
 //        struct playerInfo *pPreviousPlayer = pFirstPlayer;
 //        struct playerInfo *pCurrentPlayer;
@@ -157,7 +157,7 @@ int main(int argc, char *argv[]) {
         // Infos zur anderen Spielern abspeichern
 //        while (es gibt noch Spieler) {
 //            pCurrentPlayer = playerShmalloc(pPlayerInfo, sizeof(struct gameInfo), MAX_NUMBER_OF_PLAYERS * sizeof(struct gameInfo));
-//            *pCurrentPlayer = createPlayerInfoStruct(2, "Simon", 0);
+//            *pCurrentPlayer = createPlayerInfoStruct(2, "Simon", true);
 //            pPreviousPlayer->nextPlayerPointer = pCurrentPlayer;
 //
 //            pPreviousPlayer = pCurrentPlayer;

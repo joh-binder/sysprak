@@ -18,7 +18,7 @@ struct gameInfo createGameInfoStruct(void) {
 }
 
 // erzeugt ein neues struct gameInfo und initialisiert es mit übergebenen Werten für playerNumber, playerName und readyOrNot
-struct playerInfo createPlayerInfoStruct(int pN, char *name, int ready) {
+struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready) {
     struct playerInfo ret;
     ret.playerNumber = pN;
     strcpy(ret.playerName, name);

@@ -1,6 +1,7 @@
 #ifndef SYSPRAK_SHMFUNCTIONS_H
 #define SYSPRAK_SHMFUNCTIONS_H
 
+#include <stdbool.h>
 #define MAX_LENGTH_NAMES 256
 
 struct gameInfo {
@@ -14,9 +15,8 @@ struct gameInfo {
 struct playerInfo {
     int playerNumber;
     char playerName[MAX_LENGTH_NAMES];
-    int readyOrNot; // 0 or 1
+    bool readyOrNot;
     struct playerInfo *nextPlayerPointer;
-    int ownShmid;
 };
 
 
@@ -24,7 +24,7 @@ struct playerInfo {
 struct gameInfo createGameInfoStruct(void);
 
 // erzeugt ein neues struct gameInfo und initialisiert es mit übergebenen Werten für playerNumber, playerName und readyOrNot
-struct playerInfo createPlayerInfoStruct(int pN, char *name, int ready);
+struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready);
 
 /* Nimmt als Parameter einen Pointer auf den Anfang eines (Shared-Memory-)Speicherblocks, die Blockgröße
  * und eine gewünschte Größe. Reserviert dann in diesem Speicherblock einen Abschnitt in der gewünschten
