@@ -3,3 +3,4 @@
 /performConnection.o
 /shmfunctions.o
 /helperfunctions.a
+/config.o
