@@ -39,8 +39,8 @@ void hostnameToIp(char *ipA, char *hostname) {
 int main(int argc, char *argv[]) {
 
     // legt Variablen für Game-ID, Spielernummer und Pfad der Konfigurationsdatei an
-    char wantedGameID[14];
-    int playerNumber = 0;
+    char gameID[14];
+    int wantedPlayerNumber = 0;
     char *confFilePath = "client.conf";
 
     // liest Werte für die eben angelegten Variablen von der Kommandozeile ein
@@ -48,11 +48,11 @@ int main(int argc, char *argv[]) {
     while ((input = getopt(argc, argv, "g:p:c:")) != -1) {
         switch (input) {
             case 'g':
-                 strncpy(wantedGameID, optarg, 13);
-                 wantedGameID[13] = '\0';
+                 strncpy(gameID, optarg, 13);
+                 gameID[13] = '\0';
                 break;
             case 'p':
-                playerNumber = atoi(optarg);
+                wantedPlayerNumber = atoi(optarg);
                 break;
             case 'c':
                 confFilePath = optarg;
@@ -63,23 +63,23 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // überprüft die übergebenen Parameter auf Gültigkeit: wantedGameID nicht leer, playerNumber > 0
-    if (strcmp(wantedGameID, "") == 0) {
+    // überprüft die übergebenen Parameter auf Gültigkeit: gameID nicht leer, wantedPayerNumber > 0
+    if (strcmp(gameID, "") == 0) {
         fprintf(stderr, "Fehler! Spielernummer nicht angegeben oder ungültig.\n");
         printHelp();
         return EXIT_FAILURE;
     }
-    if (playerNumber < 0) {
+    if (wantedPlayerNumber < 0) {
         fprintf(stderr, "Fehler! Ungültige Spielernummer.\n");
         printHelp();
         return EXIT_FAILURE;
     }
-    playerNumber--; // übergebene Spielernummern sind 1-2, aber der Server will 0-1
+    wantedPlayerNumber--; // übergebene Spielernummern sind 1-2, aber der Server will 0-1
 
 //    // für mich zur Kontrolle, gehört später weg
 //    printf("Folgende Werte wurden übergeben:\n");
-//    printf("Gewünschte Game-ID: %s\n", wantedGameID);
-//    printf("Spielernummer: %d\n", playerNumber);
+//    printf("Game-ID: %s\n", gameID);
+//    printf("Gewünschte Spielernummer: %d\n", wantedPlayerNumber);
 //    printf("Pfad: %s\n", confFilePath);
 
 
@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
             printf("\n Error: Connect schiefgelaufen \n");
         }
 
-        performConnection(sock, wantedGameID, playerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo, MAX_NUMBER_OF_PLAYERS);
+        performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo, MAX_NUMBER_OF_PLAYERS);
 
         close(sock);
 
