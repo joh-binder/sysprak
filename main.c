@@ -11,6 +11,7 @@
 #include <sys/ipc.h>
 
 #include "shmfunctions.h"
+#include "thinkerfunctions.h"
 #include "performConnection.h"
 #include "config.h"
 
@@ -93,6 +94,8 @@ int main(int argc, char *argv[]) {
 //    printf("gameKindName: %s\n", configInfo.gameKindName);
 //    printf("hostName: %s\n", configInfo.hostName);
 //    printf("portNumber: %d\n", configInfo.portNumber);
+    int boardShmid = shmCreate(sizeof(tower*) * 64);
+    tower **boardShmemory = (tower **)shmAttach(boardShmid);
 
     // erzeugt ein struct GameInfo in einem dafür angelegten Shared-Memory-Bereich
     int shmidGeneralInfo = shmCreate(sizeof(struct gameInfo));
@@ -101,6 +104,8 @@ int main(int argc, char *argv[]) {
     // legt einen Shared-Memory-Bereich für die struct playerInfos an
     int shmidPlayerInfo = shmCreate(MAX_NUMBER_OF_PLAYERS * sizeof(struct playerInfo));
     struct playerInfo *pPlayerInfo = shmAttach(shmidPlayerInfo);
+    int towersShmid = shmCreate(sizeof(tower) * (32));
+    tower *towersShmemory = shmAttach(towersShmid);
 
     // Erstellung der Pipe
     int fd[2];
@@ -120,6 +125,7 @@ int main(int argc, char *argv[]) {
         shmDelete(shmidGeneralInfo);
         shmDelete(shmidPlayerInfo);
         return EXIT_FAILURE;
+
     } else if (pid == 0) {
         // wir sind im Kindprozess -> Connector
         close(fd[1]); // schließt Schreibende der Pipe
@@ -134,27 +140,79 @@ int main(int argc, char *argv[]) {
         address.sin_port = htons(configInfo.portNumber);
         char ip[IP_BUFFER]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
         hostnameToIp(ip, configInfo.hostName);
+//        // wir sind im Kindprozess -> Connector
+//        close(fd[1]); // schließt Schreibende der Pipe
+//
+//        // Socket vorbereiten
+//        int sock = 0;
+//        struct sockaddr_in address;
+//        address.sin_family = AF_INET;
+//        address.sin_port = htons(PORTNUMBER);
+//        char ip[BUF]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
+//        hostnameToIp(ip);
+//
+//        printf("IP lautet: %s\n", ip);
+//
+//        // Socket erstellen
+//        if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+//            printf("\n Error: Socket konnte nicht erstellt werden \n");
+//        }
+//
+//        inet_aton(ip,&address.sin_addr);
+//        if(connect(sock,(struct sockaddr*) &address, sizeof(address)) < 0) {
+//            printf("\n Error: Connect schiefgelaufen \n");
+//        }
+//
+//        // performConnect(sock);
+//
 
-        // Socket erstellen
-        if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-            printf("\n Error: Socket konnte nicht erstellt werden \n");
+        // setzt alle Pointer auf dem Brett auf NULL
+        for (int i = 0; i < 64; i++) {
+            boardShmemory[i] = NULL;
         }
 
-        inet_aton(ip, &address.sin_addr);
-        if (connect(sock, (struct sockaddr *) &address, sizeof(address)) < 0) {
-            printf("\n Error: Connect schiefgelaufen \n");
+        // setzt die Startbelegung der Spielsteine auf das Brett
+        char *lightSquares[] = {"A1", "C1", "E1", "G1", "B2", "D2", "F2", "H2", "A3", "C3", "E3", "G3"};
+        char *darkSquares[] = {"H8", "F8", "D8", "B8", "G7", "E7", "C7", "A7", "H6", "F6", "D6", "B6"};
+        for (unsigned long i = 0; i < sizeof(lightSquares)/sizeof(lightSquares[0]); i++) {
+            addToSquare(boardShmemory, codeToCoord(lightSquares[i]), 'w', towersShmemory);
+        }
+        for (unsigned long i = 0; i < sizeof(darkSquares)/sizeof(darkSquares[0]); i++) {
+            addToSquare(boardShmemory, codeToCoord(darkSquares[i]), 'b', towersShmemory);
         }
 
         performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo, MAX_NUMBER_OF_PLAYERS);
+        // ein paar Züge zur Probe (entsprechen nicht den Bashni-Regeln, sondern einfach von irgendwo woandershin)
+        moveTower(boardShmemory, codeToCoord("A3"), codeToCoord("C5"));
+        beatTower(boardShmemory, codeToCoord("D6"), codeToCoord("C5"), codeToCoord("B4"));
+        beatTower(boardShmemory, codeToCoord("B4"), codeToCoord("A1"), codeToCoord("B5"));
+        beatTower(boardShmemory, codeToCoord("C1"), codeToCoord("B5"), codeToCoord("H4"));
 
-        close(sock);
+
+        //        close(sock);
 
     } else {
-        // wir sind im Elternprozess -> Thinker
-        close(fd[0]); // schließt Leseende der Pipe
+
+        // druckt Spielfeld aus -> Information kommt im Thinker an
+        sleep(1);
+        printTopPieces(boardShmemory);
 
         // schreibt die Thinker-PID in das Struct mit den gemeinsamen Spielinformationen
         pGeneralInfo->pidThinker = getpid();
+
+//        char *str = malloc(33 * sizeof(char));
+//        memset(str, '0', 33);
+//        towerToString(str, boardShmemory, codeToCoord("B5"));
+//        printf("%s\n", str);
+//
+//        memset(str, '0', 33);
+//        towerToString(str, boardShmemory, codeToCoord("H4"));
+//        printf("%s\n", str);
+//        free(str);
+
+//        // wir sind im Elternprozess -> Thinker
+//        close(fd[0]); // schließt Leseende der Pipe
+//
 
         wait(NULL);
 

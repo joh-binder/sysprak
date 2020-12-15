@@ -10,7 +10,7 @@ sysprak-client: main.o helperfunctions.a
 main.o:	main.c
 	$(CC) $(CFLAGS) -c $^
 
-helperfunctions.a: shmfunctions.o performConnection.o config.o
+helperfunctions.a: shmfunctions.o performConnection.o config.o thinkerfunctions.o
 	ar -q helperfunctions.a $^
 
 shmfunctions.o: shmfunctions.c shmfunctions.h
@@ -21,6 +21,9 @@ performConnection.o: performConnection.c performConnection.h
 
 config.o: config.c config.h
 	$(CC) $(CFLAGS) -c $<
+
+thinkerfunctions.o: thinkerfunctions.c thinkerfunctions.h
+	$(CC) $(CFLAGS) -c thinkerfunctions.c
 
 play: sysprak-client
 ifndef GAME_ID
@@ -34,4 +37,4 @@ endif
 endif
 
 clean:
-	rm -f sysprak-client main.o shmfunctions.o performConnection.o config.o helperfunctions.a
+	rm -f sysprak-client main.o shmfunctions.o performConnection.o config.o thinkerfunctions.o helperfunctions.a
