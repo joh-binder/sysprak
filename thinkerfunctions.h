@@ -18,9 +18,9 @@ typedef struct tow {
  *
  * [Beachte: Pro Programmaufruf kann diese Methode nur für die Verwaltung eines (1) Speicherblocks benutzt werden.]
  */
-tower *towerShmalloc(tower *pointerToStart, unsigned long maxSizeOfBlock);
+tower *towerAlloc(tower *pointerToStart, unsigned long maxSizeOfBlock);
 
-void resetShamallocCounter(void);
+void resetTallocCounter(void);
 
 /* Wandelt einen Buchstabe-Zahl-Code in den Datentyp coordinate um.
  * Bei ungültigen Koordinaten (alles außer A-H und 1-8) sind die Koordinaten -1, -1. */
@@ -41,10 +41,13 @@ char getTopPiece(tower **board, coordinate c);
 // Druckt zu einem gegebenen Spielfeld zu jedem Feld den obersten Spielstein formatiert aus.
 void printTopPieces(tower *board[64]);
 
+/* Wendet printTopPieces an und druckt zusätzlich eine Liste mit allen weißen und schwarzen Türmen.*/
+void printFull(tower **pBoard);
+
 /* Erzeugt einen neuen tower/Spielstein und setzt ihn auf das Spielbrett. Verlangt dazu als Parameter das
  * Spielbrett, eine Zielkoordinate, die Art des Spielsteins (als Char) und einen Pointer auf den
  * Anfangsbereich des (Gesamt-)Speicherblocks, in dem der neue tower gespeichert wird. */
-void addToSquare(tower **board, coordinate c, char piece, tower *pointerToShmalloc);
+void addToSquare(tower **board, coordinate c, char piece, tower *pointerToAlloc, int maxTowersNeeded);
 
 /* Verschiebt auf einem gegebenen Array von Pointern auf tower (=einem Spielbrett) den Turm, der an einer
  * gegebenen Koordinate steht, an eine andere Koordinate. Druckt eine Fehlermeldung, wenn das Ursprungsfeld

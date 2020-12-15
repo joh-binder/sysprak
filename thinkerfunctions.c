@@ -4,7 +4,7 @@
 
 #include "thinkerfunctions.h"
 
-static int towerShmallocCounter = 0;
+static int towerAllocCounter = 0;
 
 /* Setzt voraus, dass ein Speicherblock reserviert ist. Nimmt als Parameter einen Pointer auf den Anfang dieses
  * Speicherblocks und die Blockgröße; außerdem eine Wunschgröße. Gibt dann einen Pointer auf einen Abschnitt
@@ -13,19 +13,19 @@ static int towerShmallocCounter = 0;
  *
  * [Beachte: Pro Programmaufruf kann diese Methode nur für die Verwaltung eines (1) Speicherblocks benutzt werden.]
  */
-tower *towerShmalloc(tower *pointerToStart, unsigned long maxSizeOfBlock) {
-    if (maxSizeOfBlock < (towerShmallocCounter + 1) * sizeof(tower)) {
+tower *towerAlloc(tower *pointerToStart, unsigned long maxSizeOfBlock) {
+    if (maxSizeOfBlock < (towerAllocCounter + 1) * sizeof(tower)) {
         fprintf(stderr, "Fehler! Speicherblock ist bereits voll. Kann keinen Speicher mehr zuteilen.\n");
         return (tower *)NULL;
     } else {
-        tower *pTemp = pointerToStart + towerShmallocCounter;
-        towerShmallocCounter += 1;
+        tower *pTemp = pointerToStart + towerAllocCounter;
+        towerAllocCounter += 1;
         return pTemp;
     }
 }
 
-void resetShamallocCounter(void) {
-    towerShmallocCounter = 0;
+void resetTallocCounter(void) {
+    towerAllocCounter = 0;
 }
 
 /* Wandelt einen Buchstabe-Zahl-Code in den Datentyp coordinate um.
@@ -133,7 +133,10 @@ char getTopPiece(tower **board, coordinate c) {
 
 // Druckt zu einem gegebenen Spielfeld zu jedem Feld den obersten Spielstein formatiert aus.
 void printTopPieces(tower **pBoard) {
+    printf("   A B C D E F G H\n");
+    printf(" +-----------------+\n");
     for (int i = 7; i >= 0; i--) {
+        printf("%d| ", i+1);
         for (int j = 0; j < 8; j++) {
             if (getPointerToSquare(pBoard, numsToCoord(j, i)) == (tower *)NULL) {
                 printf("- ");
@@ -141,19 +144,60 @@ void printTopPieces(tower **pBoard) {
                 printf("%c ", getTopPiece(pBoard, numsToCoord(j, i)));
             }
         }
-        printf("\n");
+        printf("|%d\n", i+1);
+    }
+    printf(" +-----------------+\n");
+    printf("   A B C D E F G H\n");
+}
+
+/* Wendet printTopPieces an und druckt zusätzlich eine Liste mit allen weißen und schwarzen Türmen.*/
+void printFull(tower **pBoard) {
+    printTopPieces(pBoard);
+
+    printf("\nWhite Towers\n");
+    printf("============\n");
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            char topPiece = getTopPiece(pBoard, numsToCoord(j, i));
+            if (topPiece == 'w' || topPiece == 'W') {
+                char *towerBuffer = malloc(33 * sizeof(char));
+                char *coordinateBuffer = malloc(3 * sizeof(char));
+                towerToString(towerBuffer, pBoard, numsToCoord(j, i));
+                coordToCode(coordinateBuffer, numsToCoord(j, i));
+                printf("%s: %s\n", coordinateBuffer, towerBuffer);
+                free(towerBuffer);
+                free(coordinateBuffer);
+            }
+        }
+    }
+
+    printf("\nBlack Towers\n");
+    printf("============\n");
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            char topPiece = getTopPiece(pBoard, numsToCoord(j, i));
+            if (topPiece == 'b' || topPiece == 'B') {
+                char *towerBuffer = malloc(33 * sizeof(char));
+                char *coordinateBuffer = malloc(3 * sizeof(char));
+                towerToString(towerBuffer, pBoard, numsToCoord(j, i));
+                coordToCode(coordinateBuffer, numsToCoord(j, i));
+                printf("%s: %s\n", coordinateBuffer, towerBuffer);
+                free(towerBuffer);
+                free(coordinateBuffer);
+            }
+        }
     }
 }
 
 /* Erzeugt einen neuen tower/Spielstein und setzt ihn auf das Spielbrett. Verlangt dazu als Parameter das
  * Spielbrett, eine Zielkoordinate, die Art des Spielsteins (als Char) und einen Pointer auf den
  * Anfangsbereich des (Gesamt-)Speicherblocks, in dem der neue tower gespeichert wird. */
-void addToSquare(tower **board, coordinate c, char piece, tower *pointerToShmalloc) {
+void addToSquare(tower **board, coordinate c, char piece, tower *pointerToAlloc, int maxTowersNeeded) {
     if (c.xCoord == -1 || c.yCoord == -1) {
         fprintf(stderr, "Fehler! Ungültige Koordinaten.\n");
     } else {
         tower *pNewTower;
-        pNewTower = towerShmalloc(pointerToShmalloc, 32*sizeof(tower));
+        pNewTower = towerAlloc(pointerToAlloc, maxTowersNeeded * sizeof(tower));
 
         pNewTower->piece = piece;
         pNewTower->next = getPointerToSquare(board, c);
