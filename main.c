@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <sys/ipc.h>
 
 #include "shmfunctions.h"
 #include "performConnection.h"
@@ -156,6 +157,18 @@ int main(int argc, char *argv[]) {
         pGeneralInfo->pidThinker = getpid();
 
         wait(NULL);
+
+        // Shared-Memory für die Spielzüge
+        int shmidMoveInfo = shmAccessExisting(ftok("main.c", KEY_FOR_MOVE_SHMEM), pGeneralInfo->sizeMoveShmem * sizeof(struct line));
+        struct line *pMoveInfo = shmAttach(shmidMoveInfo);
+
+        printf("Ich lese jetzt vom Thinker aus dem Shmemory-Bereich:\n");
+        for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
+            printf("%s\n", pMoveInfo[i].line);
+        }
+
+        if (shmDelete(shmidMoveInfo) > 0) return EXIT_FAILURE;
+
 
         // nur zum Testen, ob die Informationen richtig aus dem Shmemory-Bereich gelesen werden können
         printf("Wir spielen die Partie %s des Spiels %s mit %d Spielern.\n", pGeneralInfo->gameName, pGeneralInfo->gameKindName, pGeneralInfo->numberOfPlayers);

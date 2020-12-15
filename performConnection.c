@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/ipc.h>
 
 #include "performConnection.h"
 
@@ -13,7 +14,7 @@
 
 char recstring[MAX_LEN];
 char bufferstring[MAX_LEN];
-
+static bool moveShmExists = false;
 
 void receive_msg(int sock, char *recmsg){
 
@@ -218,6 +219,7 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
     strncpy(pGame->gameKindName, gamekindserver, MAX_LENGTH_NAMES);
     strncpy(pGame->gameName, gamename, MAX_LENGTH_NAMES);
     pGame->numberOfPlayers = totalplayer;
+    pGame->ownPlayerNumber = ownPlayerNumber;
 
     // testen, ob der Shmemory-Bereich überhaupt groß genug für alle Spieler ist
     if (totalplayer > maxNumPlayersInShmem) {
@@ -250,6 +252,184 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
         pPreviousPlayer->nextPlayerPointer = pCurrentPlayer;
         pPreviousPlayer = pCurrentPlayer;
     }
+
+    // ENDE DES PROLOGS
+    // AB JETZT NORMALER SPIELVERLAUF
+
+    int timeForMove;
+    struct line *pMoveInfo;
+
+    /* Schleife, liest eine Zeile vom Server und handelt entsprechend: "+ WAIT" wird sofort beantwortet,
+     * "+ MOVE <<Zugzeit>>" und "+ GAMEOVER" werden mit entsprechenden Funktionsaufrüfen behandelt. Sonst sollten keine
+     * Nachrichten kommen (außer Fehler). */
+    while (pGame->isActive) {
+        printf("Neue Iteration\n"); // nur für mich, kann später weg
+        receive_msg(sock, recstring);
+        printf("In ingameBehavior: %s\n", recstring); // nur für mich, kann später weg
+
+        if (strcmp(recstring+2, "WAIT") == 0) {
+            printf("Ich muss jetzt das WAIT beantworten!\n"); // nur für mich aus Paranoia, kann später weg
+            send_msg(sock, "OKWAIT\n");
+        } else if (strcmp(recstring+2, "GAMEOVER") == 0) {
+            pGame->isActive = false;
+            gameoverBehavior(sock, pMoveInfo, pGame, pPlayer);
+        } else {
+            /* ansonsten sollte recstring+2 die Form "WORT ZAHL" haben. Versuche, WORT nach recstring und Zahl nach
+             * timeForMove zu schreiben. Wenn das nicht geht (falsches Format?) -> Fehler. */
+            if (sscanf(recstring+2, "%s %d", recstring, &timeForMove) != 2) {
+                fprintf(stderr, "Fehler beim Auslesen einer Spielverlaufsnachricht.\n");
+                close(sock);
+                exit(EXIT_FAILURE);
+            }
+            // Überprüfe, ob das WORT auch wirklich MOVE ist -> nur dann in moveBehavior gehen
+            if (strcmp(recstring, "MOVE") == 0) {
+                if (!moveShmExists) {
+                    pMoveInfo = moveBehaviorFirstRound(sock, pGame);
+                    moveShmExists = true;
+                } else {
+                    moveBehavior(sock, pMoveInfo, pGame);
+                }
+            } else {
+                fprintf(stderr, "Fehler! Unbekannte Nachricht erhalten: %s.\n", recstring);
+                close(sock);
+                exit(EXIT_FAILURE);
+            }
+
+        }
+
+    }
+
+}
+
+/* Verhalten nach "+ MOVE <<Zugzeit>>" nur in der ersten Runde, d.h. wenn noch kein Shared-Memory-Bereich für die
+ * Spielsteine existiert: Liest alle Spielsteine ein und speichert sie zwischen (mit malloc --> Leakgefahr, nochmal checken!).
+ * Legt am Ende, wenn die Anzahl der Spielsteine feststeht, Shmemory in der passenden Größe an und überträgt alle
+ * Informationen dorthin. Schreibt dann THINKING und empfängt "+ OKTHINK". */
+struct line *moveBehaviorFirstRound(int sock, struct gameInfo *pGame) {
+
+    // empfängt "+ PIECESLIST"
+    receive_msg(sock, recstring);
+
+    int counter = 0; // zählt die empfangenen Zeilen = Spielsteine
+    bool isReadingMoves = true;
+    struct line *pTempMemoryForMoves = malloc(sizeof(struct line)); // Speicher für EIN struct line
+
+    while (isReadingMoves) {
+        receive_msg(sock, recstring);
+        if (strcmp(recstring+2, "ENDPIECESLIST") == 0) { // Abbruch der Schleife
+            isReadingMoves = false;
+        } else {
+            printf("Gelesen und will jetzt schreiben: %s\n", recstring+2); // nur zur Kontrolle, kann weg
+            pTempMemoryForMoves = (struct line *)realloc(pTempMemoryForMoves, (counter+1) * sizeof(struct line)); // Platz für ein struct line mehr von realloc holen
+            pTempMemoryForMoves[counter] = createLineStruct(recstring+2); // den empfangenen String in den gereallocten Speicher schreiben
+            counter++;
+        }
+    }
+
+    pGame->sizeMoveShmem = counter; // Anzahl der Spielsteininfos im Shmemory aktualisieren
+
+    // erzeugt einen Shared-Memory-Bereich in passender Größe für alle Spielsteine (als struct line)
+    int shmidMoveInfo = shmCreateFromKey(ftok("main.c", KEY_FOR_MOVE_SHMEM),  counter * sizeof(struct line));
+    struct line *ret = shmAttach(shmidMoveInfo);
+
+    // überträgt alle Spielsteininfos vom gemallocten Zwischenspeicher in das neue Shmemory
+    for (int i = 0; i < counter; i++) {
+        ret[i] = createLineStruct(pTempMemoryForMoves[i].line);
+    }
+
+    pGame->newMoveInfoAvailable = true;
+
+    printf("Ich muss jetzt THINKING schreiben!\n"); // nur für mich, kann später weg
+    send_msg(sock, "THINKING\n");
+
+    // Empfängt "+ OKTHINK"
+    receive_msg(sock, recstring);
+
+    // gemallocter Zwischenspeicher kann wieder freigegeben werden
+    free(pTempMemoryForMoves);
+    pTempMemoryForMoves = NULL;
+
+    return ret;
+}
+
+/* Verhalten nach "+ MOVE <<Zugzeit>>". Liest Spielsteine ein und speichert sie im Shared-Memory-Bereich.
+ * Schreibt "THINKING" und wartet auf "+ OKTHINK". */
+void moveBehavior(int sock, struct line *pLine, struct gameInfo *pGame) {
+
+    // liest alle Spielsteine ein und schreibt sie ins Shmemory
+    processMoves(sock, pLine, pGame);
+
+    printf("Ich muss jetzt THINKING schreiben!\n"); // nur für mich, kann später weg
+    send_msg(sock, "THINKING\n");
+
+    // Empfängt "+ OKTHINK"
+    receive_msg(sock, recstring);
+
+
+}
+
+/* Für das Verhalten nach der Zeile "+ GAMEOVER". Liest ein letztes Mal die Spielsteine ein und speichert sie im Shared
+ * Memory; druckt dann eine Botschaft darüber aus, wer gewonnen/verloren hat. */
+void gameoverBehavior(int sock, struct line *pLine, struct gameInfo *pGame, struct playerInfo *pPlayer) {
+
+    // liest alle Spielsteine ein und schreibt sie ins Shmemory
+    processMoves(sock, pLine, pGame);
+
+    // jetzt kommt "+ PLAYER0WON Yes/No" für jeden Spieler
+    for (unsigned int i = 0; i < pGame->numberOfPlayers; i++) {
+        receive_msg(sock, recstring);
+        // wir wollen eigentlich nur Yes/No in recstring haben, Fehler wenn das nicht geht
+        if (sscanf(recstring, "*[^ ] %s", recstring) != 1) {
+            fprintf(stderr, "Fehler beim Verarbeiten der Informationen, welcher Spieler gewonnen hat.\n");
+            close(sock);
+            exit(EXIT_FAILURE);
+        } else {
+            if (strcmp(recstring, "Yes") == 0) {
+                printf("%s (Spieler %d) hat gewonnen.\n", getPlayerFromNumber(pPlayer, i)->playerName, i);
+            } else if (strcmp(recstring, "No") == 0) {
+                printf("%s (Spieler %d) hat verloren.\n", getPlayerFromNumber(pPlayer, i)->playerName, i);
+            } else {
+                fprintf(stderr, "Fehler! Spieler %d hat folgendes Spielergebnis, welches nicht interpretiert werden konnte: %s\n", i, recstring);
+                close(sock);
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        printf("In gameoverBehavior: %s\n", recstring);
+    }
+
+    // empfängt "+ QUIT"
+    receive_msg(sock, recstring);
+
+}
+
+/* Liest "+ PIECESLIST", alle Spielsteine und "+ ENDPIECESLIST". Schreibt die Spielsteine in Form von struct line-s
+ * in den dafür vorgesehenen Shmemory-Bereich (beginnt bei pLine). Schreibt außerdem in pGame->sizeMoveShmem
+ * die Anzahl der gelesenen Spielsteine und setzt die Flag für Thinker, dass neue Info verfügbar ist. */
+void processMoves(int sock, struct line *pLine, struct gameInfo *pGame) {
+
+    int counter = 0;
+    bool isReadingMoves = true;
+
+    // empfängt "+ PIECESLIST"
+    receive_msg(sock, recstring);
+
+    while (isReadingMoves) {
+        receive_msg(sock, recstring);
+        if (strcmp(recstring+2, "ENDPIECESLIST") == 0) {
+            isReadingMoves = false;
+        } else {
+            printf("Gelesen: %s\n", recstring);
+            pLine[counter] = createLineStruct(recstring+2);
+            counter++;
+        }
+    }
+
+    pGame->sizeMoveShmem = counter;
+    pGame->newMoveInfoAvailable = true;
+
+
+
 
 
 }

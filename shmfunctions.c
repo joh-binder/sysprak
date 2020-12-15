@@ -11,8 +11,12 @@ static int playerShmallocCounter = 0;
 struct gameInfo createGameInfoStruct(void) {
     struct gameInfo ret;
     ret.numberOfPlayers = 0;
+    ret.ownPlayerNumber = -1;
     ret.pidConnector = 0;
     ret.pidThinker = 0;
+    ret.sizeMoveShmem = 0;
+    ret.newMoveInfoAvailable = false;
+    ret.isActive = true;
     return ret;
 }
 
@@ -23,6 +27,12 @@ struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready) {
     strncpy(ret.playerName, name, MAX_LENGTH_NAMES);
     ret.readyOrNot = ready;
     ret.nextPlayerPointer = NULL;
+    return ret;
+}
+
+struct line createLineStruct(char *content) {
+    struct line ret;
+    strncpy(ret.line, content, MOVE_LINE_BUFFER-1);
     return ret;
 }
 
@@ -65,6 +75,26 @@ int shmCreate(int shmDataSize) {
         perror("Fehler bei Shared-Memory-Erstellung");
     }
     printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
+    return shmid;
+}
+
+/* Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
+ * Verwendet aber einen Schlüssel als Parameter, statt pauschal IPC_CREAT in der Funktion shmCreate. */
+int shmCreateFromKey(key_t key, int shmDataSize) {
+    int shmid = shmget(key, shmDataSize, IPC_CREAT | IPC_EXCL | SHM_R | SHM_W);
+    if (shmid < 0) {
+        perror("Fehler bei Shared-Memory-Erstellung");
+    }
+    printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
+    return shmid;
+}
+
+// Greift über einen Schlüssel auf ein bereits existierendes Shared-Memory-Segment zu und gibt dessen ID zurück, oder -1 im Fehlerfall.
+int shmAccessExisting(key_t key, int shmDataSize) {
+    int shmid = shmget(key, shmDataSize,IPC_EXCL | SHM_R | SHM_W);
+    if (shmid < 0) {
+        perror("Fehler bei Shared-Memory-Erstellung");
+    }
     return shmid;
 }
 
