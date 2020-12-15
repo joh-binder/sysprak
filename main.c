@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <signal.h>
 
 #include "shmfunctions.h"
 #include "performConnection.h"
@@ -35,6 +36,10 @@ void hostnameToIp(char *ipA, char *hostname) {
     }
 }
 
+void sigHandlerParent(int sig_nr){
+    printf("Thinker: Signal bekommen vom Connector\n");
+    //think();
+}
 
 int main(int argc, char *argv[]) {
 
@@ -145,6 +150,11 @@ int main(int argc, char *argv[]) {
         }
 
         performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo, MAX_NUMBER_OF_PLAYERS);
+	
+	// Nachricht an Server:
+	send_msg(sock, "THINKING");
+	// Signal an Thinker
+	kill(pGeneralInfo->pidThinker, SIGUSR1);
 
         close(sock);
 
@@ -162,6 +172,10 @@ int main(int argc, char *argv[]) {
         printf("Ich bin %s und spiele als Nummer %d.\n", pPlayerInfo->playerName, pPlayerInfo->playerNumber);
         printf("Der Gegner ist %s und spielt als Nummer %d.\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber);
 
+	// handler registrieren
+	signal(SIGUSR1, sigHandlerParent);
+	// auf Signal warten
+	pause();
 
         // Shared-Memory-Bereiche aufräumen
         if (shmDelete(shmidGeneralInfo) > 0) return EXIT_FAILURE;
