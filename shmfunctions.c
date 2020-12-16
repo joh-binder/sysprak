@@ -1,4 +1,5 @@
 #include <sys/shm.h>
+#include <sys/ipc.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -6,6 +7,10 @@
 #include "shmfunctions.h"
 
 static int playerShmallocCounter = 0;
+static unsigned int sizeOfPlayerShmallocBlock = MAX_NUMBER_OF_PLAYERS_IN_SHMEM * sizeof(struct playerInfo);
+
+static unsigned int sizeOfMoveShmallocBlock;
+
 
 // erzeugt ein neues struct gameInfo und initialisiert es mit Standardwerten
 struct gameInfo createGameInfoStruct(void) {
@@ -30,6 +35,7 @@ struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready) {
     return ret;
 }
 
+/* Nimmt einen String als Parameter und kapselt ihn (bzw. max. MOVE_LINE_BUFFER-1 Zeichen davon) in einem struct line. */
 struct line createLineStruct(char *content) {
     struct line ret;
     strncpy(ret.line, content, MOVE_LINE_BUFFER-1);
@@ -39,8 +45,8 @@ struct line createLineStruct(char *content) {
 /* Nimmt als Parameter einen Pointer auf den Anfang eines (Shared-Memory-)Speicherblocks, die Blockgröße
  * und eine gewünschte Größe. Reserviert dann in diesem Speicherblock einen Abschnitt in der gewünschten
  * Größe und gibt einen Pointer darauf zurück. Gibt NULL zurück, falls nicht genügend Platz vorhanden.*/
-struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart, unsigned long maxBlockSize) {
-    if (maxBlockSize < (playerShmallocCounter + 1) * sizeof(struct playerInfo)) {
+struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart) {
+    if (sizeOfPlayerShmallocBlock < (playerShmallocCounter + 1) * sizeof(struct playerInfo)) {
         fprintf(stderr, "Fehler! Speicherblock ist bereits voll. Kann keinen Speicher mehr zuteilen.\n");
         return (struct playerInfo *)NULL;
     } else {
@@ -49,6 +55,7 @@ struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart, unsigned lo
         return pTemp;
     }
 }
+
 
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
  * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer;
@@ -67,8 +74,26 @@ struct playerInfo *getPlayerFromNumber(struct playerInfo *pCurrentPlayer, int ta
     }
 }
 
+/* Erzeugt einen Shmemory-Bereich, der groß genug ist, um MAX_NUMBER_OF_PLAYERS_IN_SHMEM Stück struct playerInfo
+ * aufnehmen zu können. Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */
+int createShmemoryForPlayers(void) {
+    int shmid = shmCreate(sizeOfPlayerShmallocBlock * sizeof(struct playerInfo));
+    return shmid;
+}
 
-// Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
+/* Erzeugt einen Shared-Memory-Bereich, der groß genug ist, um numOfLines Stück struct line aufnehmen zu können.
+ * Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */
+int createShmemoryForMoves(int numOfLines) {
+    sizeOfMoveShmallocBlock = numOfLines * sizeof(struct line);
+    int shmid = shmget(ftok("main.c", KEY_FOR_MOVE_SHMEM), sizeOfMoveShmallocBlock, IPC_CREAT | IPC_EXCL | SHM_R | SHM_W);
+    if (shmid < 0) {
+        perror("Fehler bei Shared-Memory-Erstellung");
+    }
+    printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
+    return shmid;
+}
+
+ Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
 int shmCreate(int shmDataSize) {
     int shmid = shmget(IPC_PRIVATE, shmDataSize, IPC_CREAT | IPC_EXCL | SHM_R | SHM_W);
     if (shmid < 0) {
@@ -78,20 +103,11 @@ int shmCreate(int shmDataSize) {
     return shmid;
 }
 
-/* Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
- * Verwendet aber einen Schlüssel als Parameter, statt pauschal IPC_CREAT in der Funktion shmCreate. */
-int shmCreateFromKey(key_t key, int shmDataSize) {
-    int shmid = shmget(key, shmDataSize, IPC_CREAT | IPC_EXCL | SHM_R | SHM_W);
-    if (shmid < 0) {
-        perror("Fehler bei Shared-Memory-Erstellung");
-    }
-    printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
-    return shmid;
-}
 
-// Greift über einen Schlüssel auf ein bereits existierendes Shared-Memory-Segment zu und gibt dessen ID zurück, oder -1 im Fehlerfall.
-int shmAccessExisting(key_t key, int shmDataSize) {
-    int shmid = shmget(key, shmDataSize,IPC_EXCL | SHM_R | SHM_W);
+/* Für den Thinker: Greift auf den Shared-Memory-Bereich zu, der im Connector erstellt wurde.
+ * Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */
+int accessExistingMoveShmem(void) {
+    int shmid = shmget(ftok("main.c", KEY_FOR_MOVE_SHMEM), sizeOfMoveShmallocBlock, IPC_EXCL | SHM_R | SHM_W);
     if (shmid < 0) {
         perror("Fehler bei Shared-Memory-Erstellung");
     }

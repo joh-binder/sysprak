@@ -99,7 +99,7 @@ void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer
     printf("=========================================\n");
 }
 
-void performConnection(int sock, char *gameID, int playerN, char* gamekindclient, struct gameInfo *pGame, struct playerInfo *pPlayer, int maxNumPlayersInShmem) {
+void performConnection(int sock, char *gameID, int playerN, char* gamekindclient, struct gameInfo *pGame, struct playerInfo *pPlayer) {
 
     char gamekindserver[MAX_LEN];
     char gamename[MAX_LEN];
@@ -221,15 +221,8 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
     pGame->numberOfPlayers = totalplayer;
     pGame->ownPlayerNumber = ownPlayerNumber;
 
-    // testen, ob der Shmemory-Bereich überhaupt groß genug für alle Spieler ist
-    if (totalplayer > maxNumPlayersInShmem) {
-        fprintf(stderr, "Fehler! Im Shared-Memory-Bereich ist nicht genug Platz, um die Informationen für alle Spieler abzuspeichern.\n");
-        close(sock);
-        exit(EXIT_FAILURE);
-    }
-
     // eigene Spielerinfos abspeichern
-    struct playerInfo *pFirstPlayer = playerShmalloc(pPlayer ,maxNumPlayersInShmem * sizeof(struct gameInfo));
+    struct playerInfo *pFirstPlayer = playerShmalloc(pPlayer);
     if (pFirstPlayer == (struct playerInfo *)NULL) {
         fprintf(stderr, "Fehler bei der Zuteilung von Shared Memory für die eigenen Spielerinfos.\n");
         close(sock);
@@ -242,7 +235,7 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
     struct playerInfo *pCurrentPlayer;
 
     for (int i = 0; i < totalplayer-1; i++) {
-        pCurrentPlayer = playerShmalloc(pPlayer, maxNumPlayersInShmem * sizeof(struct gameInfo));
+        pCurrentPlayer = playerShmalloc(pPlayer);
         if (pCurrentPlayer == (struct playerInfo *)NULL) {
             fprintf(stderr, "Fehler bei der Zuteilung von Shared Memory für Infos eines anderen Spielers.\n");
             close(sock);
@@ -329,7 +322,7 @@ struct line *moveBehaviorFirstRound(int sock, struct gameInfo *pGame) {
     pGame->sizeMoveShmem = counter; // Anzahl der Spielsteininfos im Shmemory aktualisieren
 
     // erzeugt einen Shared-Memory-Bereich in passender Größe für alle Spielsteine (als struct line)
-    int shmidMoveInfo = shmCreateFromKey(ftok("main.c", KEY_FOR_MOVE_SHMEM),  counter * sizeof(struct line));
+    int shmidMoveInfo = createShmemoryForMoves(counter);
     struct line *ret = shmAttach(shmidMoveInfo);
 
     // überträgt alle Spielsteininfos vom gemallocten Zwischenspeicher in das neue Shmemory

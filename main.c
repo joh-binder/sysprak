@@ -17,8 +17,13 @@
 
 #define IP_BUFFER 256 // für Array mit IP-Adresse
 #define PIPE_BUFFER 256
-#define MAX_NUMBER_OF_PLAYERS 10
+#define GAME_ID_LENGTH 13
 
+static int shmidGeneralInfo;
+static int shmidPlayerInfo;
+static int shmidMoveInfo;
+static tower **pBoard;
+static tower *pTowers;
 
 // speichert die IP-Adresse von Hostname in punktierter Darstellung in einem char Array ab
 void hostnameToIp(char *ipA, char *hostname) {
@@ -37,11 +42,26 @@ void hostnameToIp(char *ipA, char *hostname) {
     }
 }
 
+int cleanupMain(void) {
+    if (shmDelete(shmidGeneralInfo) > 0) return -1;
+    if (shmDelete(shmidPlayerInfo) > 0) return -1;
+    if (shmDelete(shmidMoveInfo) > 0) return -1;
+
+
+    if (pBoard != NULL) {
+        free(pBoard);
+    }
+    if (pTowers != NULL) {
+        free(pTowers);
+    }
+
+    return 0;
+}
 
 int main(int argc, char *argv[]) {
 
     // legt Variablen für Game-ID, Spielernummer und Pfad der Konfigurationsdatei an
-    char gameID[14];
+    char gameID[GAME_ID_LENGTH+1];
     int wantedPlayerNumber = 0;
     char *confFilePath = "client.conf";
 
@@ -50,8 +70,8 @@ int main(int argc, char *argv[]) {
     while ((input = getopt(argc, argv, "g:p:c:")) != -1) {
         switch (input) {
             case 'g':
-                strncpy(gameID, optarg, 13);
-                gameID[13] = '\0';
+                strncpy(gameID, optarg, GAME_ID_LENGTH);
+                gameID[GAME_ID_LENGTH] = '\0';
                 break;
             case 'p':
                 wantedPlayerNumber = atoi(optarg);
@@ -96,11 +116,11 @@ int main(int argc, char *argv[]) {
 //    printf("portNumber: %d\n", configInfo.portNumber);
 
     // erzeugt ein struct GameInfo in einem dafür angelegten Shared-Memory-Bereich
-    int shmidGeneralInfo = shmCreate(sizeof(struct gameInfo));
+    shmidGeneralInfo = shmCreate(sizeof(struct gameInfo));
     struct gameInfo *pGeneralInfo = shmAttach(shmidGeneralInfo);
 
     // legt einen Shared-Memory-Bereich für die struct playerInfos an
-    int shmidPlayerInfo = shmCreate(MAX_NUMBER_OF_PLAYERS * sizeof(struct playerInfo));
+    shmidPlayerInfo = createShmemoryForPlayers();
     struct playerInfo *pPlayerInfo = shmAttach(shmidPlayerInfo);
 
     // Erstellung der Pipe
@@ -109,8 +129,7 @@ int main(int argc, char *argv[]) {
 
     if (pipe(fd) < 0) {
         perror("Fehler beim Erstellen der Pipe");
-        shmDelete(shmidGeneralInfo);
-        shmDelete(shmidPlayerInfo);
+        cleanupMain();
         return EXIT_FAILURE;
     }
 
@@ -118,8 +137,7 @@ int main(int argc, char *argv[]) {
     pid_t pid = fork();
     if (pid < 0) {
         perror("Fehler beim Forking");
-        shmDelete(shmidGeneralInfo);
-        shmDelete(shmidPlayerInfo);
+        cleanupMain();
         return EXIT_FAILURE;
 
     } else if (pid == 0) {
@@ -147,8 +165,7 @@ int main(int argc, char *argv[]) {
             printf("\n Error: Connect schiefgelaufen \n");
         }
 
-        performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo,
-                          MAX_NUMBER_OF_PLAYERS);
+        performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo);
 
         close(sock);
 
@@ -160,48 +177,47 @@ int main(int argc, char *argv[]) {
         // schreibt die Thinker-PID in das Struct mit den gemeinsamen Spielinformationen
         pGeneralInfo->pidThinker = getpid();
 
-
-        tower **pBoard = malloc(sizeof(tower *) * 64);
-        tower *pTowers;
+        // alloziert Speicherplatz für das Spielbrett
+        pBoard = malloc(sizeof(tower *) * 64);
+        setUpBoard(pBoard);
 
         wait(NULL);
 
         // Shared-Memory für die Spielzüge aufrufen
-        int shmidMoveInfo = shmAccessExisting(ftok("main.c", KEY_FOR_MOVE_SHMEM),
-                                              pGeneralInfo->sizeMoveShmem * sizeof(struct line));
+        shmidMoveInfo = accessExistingMoveShmem();
         struct line *pMoveInfo = shmAttach(shmidMoveInfo);
 
         // genug Speicherplatz für alle Spielsteine freigeben
         pTowers = malloc(sizeof(tower) * pGeneralInfo->sizeMoveShmem);
-
-
+        setUpTowerAlloc(pTowers, pGeneralInfo->sizeMoveShmem);
 
         // ab hier: jede Runde wiederholen
 
         resetTallocCounter();
 
-        // setzt alle Pointer auf dem Brett auf NULL
-        for (int i = 0; i < 64; i++) {
-            pBoard[i] = NULL;
-        }
+        resetBoard();
 
 
         printf("Ich lese jetzt vom Thinker aus dem Shmemory-Bereich:\n");
         for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
-            addToSquare(pBoard, codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0], pTowers, pGeneralInfo->sizeMoveShmem);
+            if (addToSquare(codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0]) != 0) {
+                cleanupMain();
+                return EXIT_FAILURE;
+            }
         }
 
-        printFull(pBoard);
-        moveTower(pBoard, codeToCoord("E7"), codeToCoord("B4"));
-        beatTower(pBoard, codeToCoord("H8"), codeToCoord("E3"), codeToCoord("D4"));
+        printFull();
 
-        printFull(pBoard);
+        resetTallocCounter();
+        resetBoard();
 
-        beatTower(pBoard, codeToCoord("A3"), codeToCoord("B4"), codeToCoord("C5"));
-        beatTower(pBoard, codeToCoord("C5"), codeToCoord("D4"), codeToCoord("E3"));
-        printFull(pBoard);
-        undoBeatTower(pBoard, codeToCoord("C5"), codeToCoord("D4"), codeToCoord("E3"));
-        printFull(pBoard);
+        addToSquare(codeToCoord("A1"), 'b');
+        addToSquare(codeToCoord("A2"), 'b');
+        addToSquare(codeToCoord("A3"), 'b');
+        addToSquare(codeToCoord("A4"), 'b');
+        addToSquare(codeToCoord("A5"), 'b');
+
+        printFull();
 
 
 //        // ein paar Züge zur Probe (entsprechen nicht den Bashni-Regeln, sondern einfach von irgendwo woandershin)
@@ -217,18 +233,9 @@ int main(int argc, char *argv[]) {
 //        printf("Der Gegner ist %s und spielt als Nummer %d.\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber);
 
 
-        // Speicherplatz freigaben
-        if (pBoard != NULL) {
-            free(pBoard);
-        }
-        if (pTowers != NULL) {
-            free(pTowers);
-        }
 
-        // Shared-Memory-Bereiche aufräumen
-        if (shmDelete(shmidGeneralInfo) > 0) return EXIT_FAILURE;
-        if (shmDelete(shmidPlayerInfo) > 0) return EXIT_FAILURE;
-        if (shmDelete(shmidMoveInfo) > 0) return EXIT_FAILURE;
+        // Aufräumarbeiten
+        if (cleanupMain() != 0) fprintf(stderr, "Fehler beim Aufräumen\n");
 
     }
 

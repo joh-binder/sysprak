@@ -2,7 +2,10 @@
 #define SYSPRAK_SHMFUNCTIONS_H
 
 #include <stdbool.h>
+#include "thinkerfunctions.h"
+
 #define MAX_LENGTH_NAMES 256
+#define MAX_NUMBER_OF_PLAYERS_IN_SHMEM 10
 #define KEY_FOR_MOVE_SHMEM 1234567
 #define MOVE_LINE_BUFFER 10
 
@@ -35,12 +38,14 @@ struct gameInfo createGameInfoStruct(void);
 // erzeugt ein neues struct gameInfo und initialisiert es mit übergebenen Werten für playerNumber, playerName und readyOrNot
 struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready);
 
+/* Nimmt einen String als Parameter und kapselt ihn (bzw. max. MOVE_LINE_BUFFER-1 Zeichen davon) in einem struct line. */
 struct line createLineStruct(char *content);
 
 /* Nimmt als Parameter einen Pointer auf den Anfang eines (Shared-Memory-)Speicherblocks, die Blockgröße
  * und eine gewünschte Größe. Reserviert dann in diesem Speicherblock einen Abschnitt in der gewünschten
  * Größe und gibt einen Pointer darauf zurück. Gibt NULL zurück, falls nicht genügend Platz vorhanden.*/
-struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart, unsigned long maxBlockSize);
+struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart);
+
 
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
  * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer;
@@ -49,15 +54,20 @@ struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart, unsigned lo
  */
 struct playerInfo *getPlayerFromNumber(struct playerInfo *pCurrentPlayer, int targetNumber);
 
+/* Erzeugt einen Shmemory-Bereich, der groß genug ist, um MAX_NUMBER_OF_PLAYERS_IN_SHMEM Stück struct playerInfo
+ * aufnehmen zu können. Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */
+int createShmemoryForPlayers(void);
+
+/* Erzeugt einen Shared-Memory-Bereich, der groß genug ist, um numOfLines Stück struct line aufnehmen zu können.
+ * Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */
+int createShmemoryForMoves(int numOfLines);
+
 // Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
 int shmCreate(int shmdatasize);
 
-/* Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
- * Verwendet aber einen Schlüssel als Parameter, statt pauschal IPC_CREAT in der Funktion shmCreate. */
-int shmCreateFromKey(key_t key, int shmDataSize);
-
-// Greift über einen Schlüssel auf ein bereits existierendes Shared-Memory-Segment zu und gibt dessen ID zurück, oder -1 im Fehlerfall.
-int shmAccessExisting(key_t key, int shmDataSize);
+/* Für den Thinker: Greift auf den Shared-Memory-Bereich zu, der im Connector erstellt wurde.
+ * Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */
+int accessExistingMoveShmem(void);
 
 /* Bindet das Shared-Memory-Segment einer gegebenen ID an den Adressraum an und gibt einen Pointer auf die
  * Anfangsadresse zurück, oder (void *) -1 im Fehlerfall. */

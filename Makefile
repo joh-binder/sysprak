@@ -4,14 +4,11 @@ CONFIG ?= "client.conf"
 
 .PHONY: play clean
 
-sysprak-client: main.o helperfunctions.a
+sysprak-client: main.o shmfunctions.o performConnection.o config.o thinkerfunctions.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 main.o:	main.c
 	$(CC) $(CFLAGS) -c $^
-
-helperfunctions.a: shmfunctions.o performConnection.o config.o thinkerfunctions.o
-	ar -q helperfunctions.a $^
 
 shmfunctions.o: shmfunctions.c shmfunctions.h
 	$(CC) $(CFLAGS) -c $<
@@ -37,4 +34,4 @@ endif
 endif
 
 clean:
-	rm -f sysprak-client main.o shmfunctions.o performConnection.o config.o thinkerfunctions.o helperfunctions.a
+	rm -f sysprak-client main.o shmfunctions.o performConnection.o config.o thinkerfunctions.o
