@@ -185,20 +185,30 @@ int main(int argc, char *argv[]) {
             pBoard[i] = NULL;
         }
 
+
         printf("Ich lese jetzt vom Thinker aus dem Shmemory-Bereich:\n");
         for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
             addToSquare(pBoard, codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0], pTowers, pGeneralInfo->sizeMoveShmem);
         }
 
         printFull(pBoard);
+        moveTower(pBoard, codeToCoord("E7"), codeToCoord("B4"));
+        beatTower(pBoard, codeToCoord("H8"), codeToCoord("E3"), codeToCoord("D4"));
+
+        printFull(pBoard);
+
+        beatTower(pBoard, codeToCoord("A3"), codeToCoord("B4"), codeToCoord("C5"));
+        beatTower(pBoard, codeToCoord("C5"), codeToCoord("D4"), codeToCoord("E3"));
+        printFull(pBoard);
+        undoBeatTower(pBoard, codeToCoord("C5"), codeToCoord("D4"), codeToCoord("E3"));
+        printFull(pBoard);
+
 
 //        // ein paar Züge zur Probe (entsprechen nicht den Bashni-Regeln, sondern einfach von irgendwo woandershin)
 //        moveTower(pBoard, codeToCoord("A3"), codeToCoord("C5"));
 //        beatTower(pBoard, codeToCoord("D6"), codeToCoord("C5"), codeToCoord("B4"));
 //        beatTower(pBoard, codeToCoord("B4"), codeToCoord("A1"), codeToCoord("B5"));
 //        beatTower(pBoard, codeToCoord("C1"), codeToCoord("B5"), codeToCoord("H4"));
-//
-//        printTopPieces(pBoard);
 
 
 //        // nur zum Testen, ob die Informationen richtig aus dem Shmemory-Bereich gelesen werden können

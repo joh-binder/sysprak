@@ -53,8 +53,10 @@ void addToSquare(tower **board, coordinate c, char piece, tower *pointerToAlloc,
  * gegebenen Koordinate steht, an eine andere Koordinate. Druckt eine Fehlermeldung, wenn das Ursprungsfeld
  * leer oder das Zielfeld schon besetzt ist. Alle anderen Züge werden akzeptiert (z.B. auch A1 -> H7),
  * d.h. es muss beachtet werden, dass nur regelkonforme Züge an die Funktion übergeben werden.
- */
-void moveTower(tower **board, coordinate origin, coordinate target);
+ * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
+int moveTower(tower **board, coordinate origin, coordinate target);
+
+int undoMoveTower(tower **board, coordinate origin, coordinate target);
 
 /* Auf einem gegebenen Array von Pointern auf tower (=einem Spielbrett), nimmt den Turm, der an der
  * Koordinate origin steht, schlägt den Turm, der an victim steht, (d.h. entfernt den obersten Spielstein und
@@ -62,8 +64,11 @@ void moveTower(tower **board, coordinate origin, coordinate target);
  *
  * Gibt eine Fehlermeldung aus, wenn origin oder victim leer sind oder target schon besetzt ist,
  * ansonsten wird jeder Zug ausgeführt. Es muss also selbst sichergestellt werden, dass die übergebenen Züge
- * regelkonform sind. */
-void beatTower(tower **board, coordinate origin, coordinate victim, coordinate target);
+ * regelkonform sind.
+ * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
+int beatTower(tower **board, coordinate origin, coordinate victim, coordinate target);
+
+int undoBeatTower(tower **board, coordinate origin, coordinate victim, coordinate target);
 
 /* Nimmt als Parameter einen String (sollte 33 Chars aufnehmen können), ein Spielbrett und eine Koordinate.
  * Repräsentiert alle Spielsteine, aus denen der Turm an der angegebenen Kooordinate besteht, als Folge von
@@ -74,5 +79,11 @@ void towerToString(char *target, tower **board, coordinate c);
 /* Nimmt als Parameter einen String (sollte 3) und eine coordinate. Wandelt die Koordinate um in die
  * Buchstabe-Zahl-Repräsentation (z.B. x = 4, y = 2 --> B3) und schreibt das Ergebnis in den String */
 void coordToCode (char* target, coordinate c);
+
+int minInt(int a, int b);
+
+int maxInt(int a, int b);
+
+int getSign(int a);
 
 #endif //SYSPRAK_THINKERFUNCTIONS_H

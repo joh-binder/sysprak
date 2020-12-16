@@ -105,8 +105,10 @@ coordinate codeToCoord(char code[2]) {
  * Bei ungültigen Werten sind die Koordinaten -1, -1. */
 coordinate numsToCoord(int x, int y) {
     coordinate ret;
-    ret.xCoord = x;
-    ret.yCoord = y;
+    if (x >= 0 && x <= 7) ret.xCoord = x;
+    else ret.xCoord = -1;
+    if (y >= 0 && y <= 7) ret.yCoord = y;
+    else ret.yCoord = -1;
     return ret;
 }
 
@@ -158,12 +160,12 @@ void printFull(tower **pBoard) {
     printf("============\n");
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
-            char topPiece = getTopPiece(pBoard, numsToCoord(j, i));
+            char topPiece = getTopPiece(pBoard, numsToCoord(i, j));
             if (topPiece == 'w' || topPiece == 'W') {
                 char *towerBuffer = malloc(33 * sizeof(char));
                 char *coordinateBuffer = malloc(3 * sizeof(char));
-                towerToString(towerBuffer, pBoard, numsToCoord(j, i));
-                coordToCode(coordinateBuffer, numsToCoord(j, i));
+                towerToString(towerBuffer, pBoard, numsToCoord(i, j));
+                coordToCode(coordinateBuffer, numsToCoord(i, j));
                 printf("%s: %s\n", coordinateBuffer, towerBuffer);
                 free(towerBuffer);
                 free(coordinateBuffer);
@@ -209,20 +211,29 @@ void addToSquare(tower **board, coordinate c, char piece, tower *pointerToAlloc,
  * gegebenen Koordinate steht, an eine andere Koordinate. Druckt eine Fehlermeldung, wenn das Ursprungsfeld
  * leer oder das Zielfeld schon besetzt ist. Alle anderen Züge werden akzeptiert (z.B. auch A1 -> H7),
  * d.h. es muss beachtet werden, dass nur regelkonforme Züge an die Funktion übergeben werden.
- */
-void moveTower(tower **board, coordinate origin, coordinate target) {
+ * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
+int moveTower(tower **board, coordinate origin, coordinate target) {
     if (getPointerToSquare(board, origin) == NULL) {
         char code[3];
         coordToCode(code, origin);
         fprintf(stderr, "Fehler! Auf dem Ursprungsfeld %s liegt liegt gar kein Stein.\n", code);
+        return -1;
     } else if (getPointerToSquare(board, target) != NULL) {
         char code[3];
         coordToCode(code, target);
         fprintf(stderr, "Fehler! Auf dem Zielfeld %s liegt schon ein Stein.\n", code);
+        return -1;
     } else {
         board[8*target.yCoord + target.xCoord] = getPointerToSquare(board, origin);
         board[8*origin.yCoord + origin.xCoord] = NULL;
+        return 0;
     }
+}
+
+/* Macht eine moveTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich.
+ * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
+int undoMoveTower(tower **board, coordinate origin, coordinate target) {
+    return moveTower(board, target, origin);
 }
 
 /* Auf einem gegebenen Array von Pointern auf tower (=einem Spielbrett), nimmt den Turm, der an der
@@ -231,35 +242,98 @@ void moveTower(tower **board, coordinate origin, coordinate target) {
  *
  * Gibt eine Fehlermeldung aus, wenn origin oder victim leer sind oder target schon besetzt ist,
  * ansonsten wird jeder Zug ausgeführt. Es muss also selbst sichergestellt werden, dass die übergebenen Züge
- * regelkonform sind. */
-void beatTower(tower **board, coordinate origin, coordinate victim, coordinate target) {
+ * regelkonform sind.
+ * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
+int beatTower(tower **board, coordinate origin, coordinate victim, coordinate target) {
+    if ((origin.xCoord == victim.xCoord && origin.yCoord == victim.yCoord) || (victim.xCoord == target.xCoord && victim.yCoord == target.yCoord) || (origin.xCoord == target.xCoord && origin.yCoord == target.yCoord)) {
+        fprintf(stderr, "Fehler! Zwei der Koordinaten sind gleich.\n");
+        return -1;
+    }
+
     if (getPointerToSquare(board, origin) == NULL) {
         char code[3];
         coordToCode(code, origin);
-        fprintf(stderr, "Fehler! Auf dem Ursprungsfeld %s liegt liegt gar kein Stein.\n", code);
+        fprintf(stderr, "Fehler! Auf dem Ursprungsfeld %s liegt gar kein Stein.\n", code);
+        return -1;
     } else if (getPointerToSquare(board, victim) == NULL) {
         char code[3];
         coordToCode(code, victim);
         fprintf(stderr, "Fehler! Auf dem Feld %s ist gar kein Stein, der geschlagen werden könnte.\n", code);
+        return -1;
     } else if (getPointerToSquare(board, target) != NULL) {
         char code[3];
         coordToCode(code, target);
-        fprintf(stderr, "Fehler! Auf dem Zielfeld %s liegt schon ein Stein.\n", code);
-    } else {
-        tower *pNewVictimTower = getPointerToSquare(board, victim)->next;
-        tower *pTowerForTarget = getPointerToSquare(board, origin);
+        fprintf(stderr, "Fehler! Auf dem Zielfeld %s liegt schon ein Turm.\n", code);
+        return -1;
+    }
 
-        tower *pCurrent = pTowerForTarget;
-        while (pCurrent->next != NULL) {
+    // überprüft, ob auf den Feldern zwischen Origin und Victim etwas steht
+    int xDirection = getSign(victim.xCoord-origin.xCoord);
+    int yDirection = getSign(victim.yCoord-origin.yCoord);
+    int i = origin.xCoord + xDirection;
+    int j = origin.xCoord + yDirection;
+    while (i != victim.xCoord) {
+        if (getPointerToSquare(board, numsToCoord(i, j)) != NULL) {
+            char code[3];
+            coordToCode(code, numsToCoord(i,j));
+            fprintf(stderr, "Fehler! Auf dem Feld %s zwischen Origin und Victim steht ein Turm. Schlagen ist deshalb nicht möglich.\n", code);
+            return -1;
+        }
+    }
+
+    // überprüft, ob Target diagonal hinter dem Feld Victim liegt
+    if (target.xCoord != victim.xCoord + xDirection || target.yCoord != victim.yCoord + yDirection) {
+        fprintf(stderr, "Fehler! Schlagen ist nur möglich, wenn das Feld Target diagonal hinter dem Feld Victim liegt.\n");
+        return -1;
+    }
+
+    // ab hier tatsächliche Versetzung der Spielsteine
+    tower *pNewVictimTower = getPointerToSquare(board, victim)->next;
+    tower *pTowerForTarget = getPointerToSquare(board, origin);
+
+    tower *pCurrent = pTowerForTarget;
+    while (pCurrent->next != NULL) {
+        pCurrent = pCurrent->next;
+    }
+    pCurrent->next = getPointerToSquare(board, victim);
+    pCurrent->next->next = NULL;
+
+    board[8*victim.yCoord + victim.xCoord] = pNewVictimTower;
+    board[8*target.yCoord + target.xCoord] = pTowerForTarget;
+    board[8*origin.yCoord + origin.xCoord] = NULL;
+    return 0;
+
+}
+
+int undoBeatTower(tower **board, coordinate origin, coordinate victim, coordinate target) {
+    if (getPointerToSquare(board, origin) != NULL) {
+        char code[3];
+        coordToCode(code, origin);
+        fprintf(stderr, "Fehler! Auf dem Ursprungsfeld %s liegt schon ein Turm. In beatTower hätte dieser aber weggezogen werden müssen.\n", code);
+        return -1;
+    } else if (getPointerToSquare(board, target) == NULL) {
+        char code[3];
+        coordToCode(code, target);
+        fprintf(stderr, "Fehler! Auf dem Zielfeld %s liegt gar kein Stein. In beatTower hätte hier aber der neue Turm hingestellt werden müssen.\n", code);
+        return -1;
+    } else {
+        tower *pCurrent = getPointerToSquare(board, target);
+        tower *pBottomPieceOfTarget;
+        while (pCurrent->next->next != NULL) {
             pCurrent = pCurrent->next;
         }
-        pCurrent->next = getPointerToSquare(board, victim);
-        pCurrent->next->next = NULL;
+        pBottomPieceOfTarget = pCurrent->next;
+        pCurrent->next = NULL;
 
-        board[8*victim.yCoord + victim.xCoord] = pNewVictimTower;
-        board[8*target.yCoord + target.xCoord] = pTowerForTarget;
-        board[8*origin.yCoord + origin.xCoord] = NULL;
+        pBottomPieceOfTarget->next = getPointerToSquare(board, victim);
+        board[8*victim.yCoord+victim.xCoord] = pBottomPieceOfTarget;
+
+        board[8*origin.yCoord+origin.xCoord] = getPointerToSquare(board, target);
+        board[8*target.yCoord+target.xCoord] = NULL;
+
+        return 0;
     }
+
 }
 
 /* Nimmt als Parameter einen String (sollte 33 Chars aufnehmen können), ein Spielbrett und eine Koordinate.
@@ -348,4 +422,20 @@ void coordToCode(char *target, coordinate c) {
     ret[2] = '\0';
 
     strncpy(target, ret, 3);
+}
+
+int minInt(int a, int b) {
+    if (b < a) return b;
+    else return a;
+}
+
+int maxInt(int a, int b) {
+    if (b > a) return b;
+    else return a;
+}
+
+int getSign(int a) {
+    if (a == 0) return 0;
+    else if (a > 0) return 1;
+    else return -1;
 }
