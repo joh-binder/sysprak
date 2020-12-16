@@ -36,8 +36,9 @@ void hostnameToIp(char *ipA, char *hostname) {
     }
 }
 
-void sigHandlerParent(int sig_nr){
-    printf("Thinker: Signal bekommen vom Connector\n");
+// signal handler Thinker (= parent)
+void sigHandlerParent(int sig_nr) {
+    printf("Thinker: Signal (%d) bekommen vom Connector. \n", sig_nr);
     //think();
 }
 
@@ -141,12 +142,19 @@ int main(int argc, char *argv[]) {
 
         // Socket erstellen
         if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-            printf("\n Error: Socket konnte nicht erstellt werden \n");
+            fprintf(stderr, "Fehler! Socket konnte nicht erstellt werden. \n");
+	    shmDelete(shmidGeneralInfo);
+	    shmDelete(shmidPlayerInfo);
+	    return EXIT_FAILURE;
         }
 
         inet_aton(ip, &address.sin_addr);
         if (connect(sock, (struct sockaddr *) &address, sizeof(address)) < 0) {
-            printf("\n Error: Connect schiefgelaufen \n");
+            fprintf(stderr, "Fehler! Connect schiefgelaufen. \n");
+	    shmDelete(shmidGeneralInfo);
+	    shmDelete(shmidPlayerInfo);
+	    close(sock);
+	    return EXIT_FAILURE;
         }
 
         performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo, MAX_NUMBER_OF_PLAYERS);
@@ -173,7 +181,12 @@ int main(int argc, char *argv[]) {
         printf("Der Gegner ist %s und spielt als Nummer %d.\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber);
 
 	// handler registrieren
-	signal(SIGUSR1, sigHandlerParent);
+	if (signal(SIGUSR1, sigHandlerParent) == SIG_ERR) {
+		fprintf(stderr, "Fehler! Der signal handler konnte nicht registriert werden. \n");
+		shmDelete(shmidGeneralInfo);
+	        shmDelete(shmidPlayerInfo);
+        	return EXIT_FAILURE;
+	}
 	// auf Signal warten
 	pause();
 
