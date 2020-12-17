@@ -57,8 +57,9 @@ int addToSquare(coordinate c, char piece);
 int moveTower(coordinate origin, coordinate target);
 
 /* Macht eine moveTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich.
- * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
-int undoMoveTower(coordinate origin, coordinate target);
+ * Gibt keinen Kontrollwert zurück, weil angenommen wird, dass die Funktion nicht eigenständig aufgerufen wird,
+ * sondern nur in Folge einer gültigen moveTower-Operation (-> dort Rückgabewert checken) */
+void undoMoveTower(coordinate origin, coordinate target);
 
 /* Nimmt den Turm, der an der Koordinate origin steht, schlägt den Turm, der an victim steht,
  * (d.h. entfernt den obersten Spielstein und fügt ihn zum eigenen Turm hinzu) und setzt den Ergebnisturm dann an die
@@ -69,11 +70,12 @@ int undoMoveTower(coordinate origin, coordinate target);
  * Ansonsten muss aber selbst sichergestellt werden, dass die übergebenen Züge regelkonform sind.
  *
  * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
-int beatTower(coordinate origin, coordinate victim, coordinate target);
+int captureTower(coordinate origin, coordinate target);
 
-/* Macht eine beatTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich.
- * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
-int undoBeatTower(coordinate origin, coordinate victim, coordinate target);
+/* Macht eine captureTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich.
+ * Gibt keinen Kontrollwert zurück, weil angenommen wird, dass die Funktion nicht eigenständig aufgerufen wird,
+ * sondern nur in Folge einer gültigen captureTower-Operation (-> dort Rückgabewert checken) */
+void undoCaptureTower(coordinate origin, coordinate target);
 
 /* Nimmt als Parameter einen String (sollte 33 Chars aufnehmen können), ein Spielbrett und eine Koordinate.
  * Repräsentiert alle Spielsteine, aus denen der Turm an der angegebenen Kooordinate besteht, als Folge von
@@ -98,5 +100,7 @@ int minInt(int a, int b);
 int maxInt(int a, int b);
 
 int getSign(int a);
+
+int abs(int a);
 
 #endif //SYSPRAK_THINKERFUNCTIONS_H

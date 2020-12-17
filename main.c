@@ -197,7 +197,6 @@ int main(int argc, char *argv[]) {
         resetTallocCounter();
         resetBoard();
 
-        printf("Ich lese jetzt vom Thinker aus aus dem Shmemory-Bereich:\n");
         for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
             if (addToSquare(codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0]) != 0) {
                 cleanupMain();
@@ -207,31 +206,25 @@ int main(int argc, char *argv[]) {
 
         printFull();
 
-        moveTower(codeToCoord("A3"), codeToCoord("B4"));
-        moveTower(codeToCoord("B6"), codeToCoord("C5"));
-        moveTower(codeToCoord("B2"), codeToCoord("A3"));
-        moveTower(codeToCoord("D6"), codeToCoord("E5"));
-        beatTower(codeToCoord("B4"), codeToCoord("C5"), codeToCoord("D6"));
-        beatTower(codeToCoord("D6"), codeToCoord("E5"), codeToCoord("F4"));
-
-        printFull();
-
-        moveTower(codeToCoord("F6"), codeToCoord("G5"));
         moveTower(codeToCoord("E3"), codeToCoord("D4"));
-        beatTower(codeToCoord("G5"), codeToCoord("F4"), codeToCoord("E3"));
-
         printFull();
+
+
 
 //        //angenommen, wir wären in einer neuen Iteration --> alles löschen, Steine neu setzen
 //        resetTallocCounter();
 //        resetBoard();
-//        addToSquare(codeToCoord("A1"), 'b');
-//        addToSquare(codeToCoord("A2"), 'b');
-//        addToSquare(codeToCoord("A3"), 'b');
-//        addToSquare(codeToCoord("A4"), 'b');
-//        addToSquare(codeToCoord("A5"), 'b');
+//
+//        addToSquare(codeToCoord("A1"), 'W');
+//        addToSquare(codeToCoord("D4"), 'w');
+//        addToSquare(codeToCoord("D4"), 'b');
+//        addToSquare(codeToCoord("D4"), 'b');
+//
 //        printFull();
-
+//        captureTower(codeToCoord("A1"), codeToCoord("E5"));
+//        printFull();
+//        undoCaptureTower(codeToCoord("A1"), codeToCoord("E5"));
+//        printFull();
 
 
         // Aufräumarbeiten
