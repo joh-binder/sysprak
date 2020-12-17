@@ -8,6 +8,7 @@
 
 static int playerShmallocCounter = 0;
 static unsigned int sizeOfPlayerShmallocBlock = MAX_NUMBER_OF_PLAYERS_IN_SHMEM * sizeof(struct playerInfo);
+static struct playerInfo *pointerToStart;
 
 static unsigned int sizeOfMoveShmallocBlock;
 
@@ -31,7 +32,6 @@ struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready) {
     ret.playerNumber = pN;
     strncpy(ret.playerName, name, MAX_LENGTH_NAMES);
     ret.readyOrNot = ready;
-    ret.nextPlayerPointer = NULL;
     return ret;
 }
 
@@ -42,10 +42,17 @@ struct line createLineStruct(char *content) {
     return ret;
 }
 
-/* Nimmt als Parameter einen Pointer auf den Anfang eines (Shared-Memory-)Speicherblocks, die Blockgröße
- * und eine gewünschte Größe. Reserviert dann in diesem Speicherblock einen Abschnitt in der gewünschten
- * Größe und gibt einen Pointer darauf zurück. Gibt NULL zurück, falls nicht genügend Platz vorhanden.*/
-struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart) {
+/* In der Main-Methode sollte ein Shared-Memory-Bereich für alle struct playerInfos angelegt worden sein. Danach muss
+ * der Pointer darauf einmal mit dieser Funktion an diese Methode übergeben werden, damit hier die statische Variable
+ * entsprechend gesetzt werden kann, welche dann andere Funktionen benutzen. */
+void setUpPlayerAlloc(struct playerInfo *pStart) {
+    pointerToStart = pStart;
+}
+
+/* Setzt voraus, dass ein Speicherblock für struct playerInfos reserviert ist. Gibt einen Pointer auf einen Abschnitt
+ * des Speicherblocks zurück, der genau groß genug für eine struct playerInfo ist. Intern wird ein Zähler
+ * versetzt, sodass der nächste Funktionsaufruf einen anderen Abschnitt liefert. */
+struct playerInfo *playerShmalloc() {
     if (sizeOfPlayerShmallocBlock < (playerShmallocCounter + 1) * sizeof(struct playerInfo)) {
         fprintf(stderr, "Fehler! Speicherblock ist bereits voll. Kann keinen Speicher mehr zuteilen.\n");
         return (struct playerInfo *)NULL;
@@ -56,22 +63,18 @@ struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart) {
     }
 }
 
-
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
- * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer;
- * Eingabeparameter sind ein Pointer auf ein struct playerInfo, ab dem gesucht werden soll (i.d.R. das erste Struct der
- * Liste) sowie die gewünschte Spielernummer
- */
-struct playerInfo *getPlayerFromNumber(struct playerInfo *pCurrentPlayer, int targetNumber) {
-    if (pCurrentPlayer->playerNumber == targetNumber) {
-        return pCurrentPlayer;
-    } else {
-        if (pCurrentPlayer->nextPlayerPointer == NULL) {
-            return NULL;
+ * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer */
+struct playerInfo *getPlayerFromNumber(int targetNumber) {
+    struct playerInfo *pCurrentPlayer = pointerToStart;
+    while (pCurrentPlayer != NULL) {
+        if (pCurrentPlayer->playerNumber == targetNumber) {
+            return pCurrentPlayer;
         } else {
-            return getPlayerFromNumber(pCurrentPlayer->nextPlayerPointer, targetNumber);
+            pCurrentPlayer += 1;
         }
     }
+    return NULL;
 }
 
 /* Erzeugt einen Shmemory-Bereich, der groß genug ist, um MAX_NUMBER_OF_PLAYERS_IN_SHMEM Stück struct playerInfo
@@ -93,7 +96,7 @@ int createShmemoryForMoves(int numOfLines) {
     return shmid;
 }
 
- Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
+// Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
 int shmCreate(int shmDataSize) {
     int shmid = shmget(IPC_PRIVATE, shmDataSize, IPC_CREAT | IPC_EXCL | SHM_R | SHM_W);
     if (shmid < 0) {

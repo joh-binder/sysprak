@@ -25,7 +25,6 @@ struct playerInfo {
     int playerNumber;
     char playerName[MAX_LENGTH_NAMES];
     bool readyOrNot;
-    struct playerInfo *nextPlayerPointer;
 };
 
 struct line {
@@ -41,18 +40,20 @@ struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready);
 /* Nimmt einen String als Parameter und kapselt ihn (bzw. max. MOVE_LINE_BUFFER-1 Zeichen davon) in einem struct line. */
 struct line createLineStruct(char *content);
 
-/* Nimmt als Parameter einen Pointer auf den Anfang eines (Shared-Memory-)Speicherblocks, die Blockgröße
- * und eine gewünschte Größe. Reserviert dann in diesem Speicherblock einen Abschnitt in der gewünschten
- * Größe und gibt einen Pointer darauf zurück. Gibt NULL zurück, falls nicht genügend Platz vorhanden.*/
-struct playerInfo *playerShmalloc(struct playerInfo *pointerToStart);
+/* In der Main-Methode sollte ein Shared-Memory-Bereich für alle struct playerInfos angelegt worden sein. Danach muss
+ * der Pointer darauf einmal mit dieser Funktion an diese Methode übergeben werden, damit hier die statische Variable
+ * entsprechend gesetzt werden kann, welche dann andere Funktionen benutzen. */
+void setUpPlayerAlloc(struct playerInfo *pStart);
+
+/* Setzt voraus, dass ein Speicherblock für struct playerInfos reserviert ist. Gibt einen Pointer auf einen Abschnitt
+ * des Speicherblocks zurück, der genau groß genug für eine struct playerInfo ist. Intern wird ein Zähler
+ * versetzt, sodass der nächste Funktionsaufruf einen anderen Abschnitt liefert. */
+struct playerInfo *playerShmalloc();
 
 
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
- * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer;
- * Eingabeparameter sind ein Pointer auf ein struct playerInfo, ab dem gesucht werden soll (i.d.R. das erste Struct der
- * Liste) sowie die gewünschte Spielernummer
- */
-struct playerInfo *getPlayerFromNumber(struct playerInfo *pCurrentPlayer, int targetNumber);
+ * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer */
+struct playerInfo *getPlayerFromNumber(int targetNumber);
 
 /* Erzeugt einen Shmemory-Bereich, der groß genug ist, um MAX_NUMBER_OF_PLAYERS_IN_SHMEM Stück struct playerInfo
  * aufnehmen zu können. Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */

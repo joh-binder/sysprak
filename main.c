@@ -122,6 +122,7 @@ int main(int argc, char *argv[]) {
     // legt einen Shared-Memory-Bereich für die struct playerInfos an
     shmidPlayerInfo = createShmemoryForPlayers();
     struct playerInfo *pPlayerInfo = shmAttach(shmidPlayerInfo);
+    setUpPlayerAlloc(pPlayerInfo);
 
     // Erstellung der Pipe
     int fd[2];
@@ -165,7 +166,7 @@ int main(int argc, char *argv[]) {
             printf("\n Error: Connect schiefgelaufen \n");
         }
 
-        performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo);
+        performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo);
 
         close(sock);
 
@@ -194,11 +195,9 @@ int main(int argc, char *argv[]) {
         // ab hier: jede Runde wiederholen
 
         resetTallocCounter();
-
         resetBoard();
 
-
-        printf("Ich lese jetzt vom Thinker aus dem Shmemory-Bereich:\n");
+        printf("Ich lese jetzt vom Thinker aus aus dem Shmemory-Bereich:\n");
         for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
             if (addToSquare(codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0]) != 0) {
                 cleanupMain();
@@ -208,29 +207,30 @@ int main(int argc, char *argv[]) {
 
         printFull();
 
-        resetTallocCounter();
-        resetBoard();
-
-        addToSquare(codeToCoord("A1"), 'b');
-        addToSquare(codeToCoord("A2"), 'b');
-        addToSquare(codeToCoord("A3"), 'b');
-        addToSquare(codeToCoord("A4"), 'b');
-        addToSquare(codeToCoord("A5"), 'b');
+        moveTower(codeToCoord("A3"), codeToCoord("B4"));
+        moveTower(codeToCoord("B6"), codeToCoord("C5"));
+        moveTower(codeToCoord("B2"), codeToCoord("A3"));
+        moveTower(codeToCoord("D6"), codeToCoord("E5"));
+        beatTower(codeToCoord("B4"), codeToCoord("C5"), codeToCoord("D6"));
+        beatTower(codeToCoord("D6"), codeToCoord("E5"), codeToCoord("F4"));
 
         printFull();
 
+        moveTower(codeToCoord("F6"), codeToCoord("G5"));
+        moveTower(codeToCoord("E3"), codeToCoord("D4"));
+        beatTower(codeToCoord("G5"), codeToCoord("F4"), codeToCoord("E3"));
 
-//        // ein paar Züge zur Probe (entsprechen nicht den Bashni-Regeln, sondern einfach von irgendwo woandershin)
-//        moveTower(pBoard, codeToCoord("A3"), codeToCoord("C5"));
-//        beatTower(pBoard, codeToCoord("D6"), codeToCoord("C5"), codeToCoord("B4"));
-//        beatTower(pBoard, codeToCoord("B4"), codeToCoord("A1"), codeToCoord("B5"));
-//        beatTower(pBoard, codeToCoord("C1"), codeToCoord("B5"), codeToCoord("H4"));
+        printFull();
 
-
-//        // nur zum Testen, ob die Informationen richtig aus dem Shmemory-Bereich gelesen werden können
-//        printf("Wir spielen die Partie %s des Spiels %s mit %d Spielern.\n", pGeneralInfo->gameName, pGeneralInfo->gameKindName, pGeneralInfo->numberOfPlayers);
-//        printf("Ich bin %s und spiele als Nummer %d.\n", pPlayerInfo->playerName, pPlayerInfo->playerNumber);
-//        printf("Der Gegner ist %s und spielt als Nummer %d.\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber);
+//        //angenommen, wir wären in einer neuen Iteration --> alles löschen, Steine neu setzen
+//        resetTallocCounter();
+//        resetBoard();
+//        addToSquare(codeToCoord("A1"), 'b');
+//        addToSquare(codeToCoord("A2"), 'b');
+//        addToSquare(codeToCoord("A3"), 'b');
+//        addToSquare(codeToCoord("A4"), 'b');
+//        addToSquare(codeToCoord("A5"), 'b');
+//        printFull();
 
 
 

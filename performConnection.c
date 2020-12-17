@@ -99,7 +99,7 @@ void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer
     printf("=========================================\n");
 }
 
-void performConnection(int sock, char *gameID, int playerN, char* gamekindclient, struct gameInfo *pGame, struct playerInfo *pPlayer) {
+void performConnection(int sock, char *gameID, int playerN, char* gamekindclient, struct gameInfo *pGame) {
 
     char gamekindserver[MAX_LEN];
     char gamename[MAX_LEN];
@@ -222,7 +222,7 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
     pGame->ownPlayerNumber = ownPlayerNumber;
 
     // eigene Spielerinfos abspeichern
-    struct playerInfo *pFirstPlayer = playerShmalloc(pPlayer);
+    struct playerInfo *pFirstPlayer = playerShmalloc();
     if (pFirstPlayer == (struct playerInfo *)NULL) {
         fprintf(stderr, "Fehler bei der Zuteilung von Shared Memory für die eigenen Spielerinfos.\n");
         close(sock);
@@ -231,19 +231,15 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
     *pFirstPlayer = createPlayerInfoStruct(ownPlayerNumber, playerName, true);
 
     // andere Spielerinfos abspeichern -> als Schleife, damit es auch für Spiele mit mehr als zwei Spielern funktioniert
-    struct playerInfo *pPreviousPlayer = pFirstPlayer;
-    struct playerInfo *pCurrentPlayer;
-
     for (int i = 0; i < totalplayer-1; i++) {
-        pCurrentPlayer = playerShmalloc(pPlayer);
-        if (pCurrentPlayer == (struct playerInfo *)NULL) {
+        struct playerInfo *pNextPlayer = playerShmalloc();
+        if (pNextPlayer == (struct playerInfo *)NULL) {
             fprintf(stderr, "Fehler bei der Zuteilung von Shared Memory für Infos eines anderen Spielers.\n");
             close(sock);
             exit(EXIT_FAILURE);
+        } else {
+            *pNextPlayer = createPlayerInfoStruct(oppInfo[i].playerNumber, oppInfo[i].playerName, oppInfo[i].readyOrNot);
         }
-        *pCurrentPlayer = createPlayerInfoStruct(oppInfo[0].playerNumber, oppInfo[0].playerName, oppInfo[0].readyOrNot);
-        pPreviousPlayer->nextPlayerPointer = pCurrentPlayer;
-        pPreviousPlayer = pCurrentPlayer;
     }
 
     // ENDE DES PROLOGS
@@ -265,7 +261,7 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
             send_msg(sock, "OKWAIT\n");
         } else if (strcmp(recstring+2, "GAMEOVER") == 0) {
             pGame->isActive = false;
-            gameoverBehavior(sock, pMoveInfo, pGame, pPlayer);
+            gameoverBehavior(sock, pMoveInfo, pGame);
         } else {
             /* ansonsten sollte recstring+2 die Form "WORT ZAHL" haben. Versuche, WORT nach recstring und Zahl nach
              * timeForMove zu schreiben. Wenn das nicht geht (falsches Format?) -> Fehler. */
@@ -312,7 +308,6 @@ struct line *moveBehaviorFirstRound(int sock, struct gameInfo *pGame) {
         if (strcmp(recstring+2, "ENDPIECESLIST") == 0) { // Abbruch der Schleife
             isReadingMoves = false;
         } else {
-            printf("Gelesen und will jetzt schreiben: %s\n", recstring+2); // nur zur Kontrolle, kann weg
             pTempMemoryForMoves = (struct line *)realloc(pTempMemoryForMoves, (counter+1) * sizeof(struct line)); // Platz für ein struct line mehr von realloc holen
             pTempMemoryForMoves[counter] = createLineStruct(recstring+2); // den empfangenen String in den gereallocten Speicher schreiben
             counter++;
@@ -363,7 +358,7 @@ void moveBehavior(int sock, struct line *pLine, struct gameInfo *pGame) {
 
 /* Für das Verhalten nach der Zeile "+ GAMEOVER". Liest ein letztes Mal die Spielsteine ein und speichert sie im Shared
  * Memory; druckt dann eine Botschaft darüber aus, wer gewonnen/verloren hat. */
-void gameoverBehavior(int sock, struct line *pLine, struct gameInfo *pGame, struct playerInfo *pPlayer) {
+void gameoverBehavior(int sock, struct line *pLine, struct gameInfo *pGame) {
 
     // liest alle Spielsteine ein und schreibt sie ins Shmemory
     processMoves(sock, pLine, pGame);
@@ -377,14 +372,20 @@ void gameoverBehavior(int sock, struct line *pLine, struct gameInfo *pGame, stru
             close(sock);
             exit(EXIT_FAILURE);
         } else {
-            if (strcmp(recstring, "Yes") == 0) {
-                printf("%s (Spieler %d) hat gewonnen.\n", getPlayerFromNumber(pPlayer, i)->playerName, i);
-            } else if (strcmp(recstring, "No") == 0) {
-                printf("%s (Spieler %d) hat verloren.\n", getPlayerFromNumber(pPlayer, i)->playerName, i);
-            } else {
-                fprintf(stderr, "Fehler! Spieler %d hat folgendes Spielergebnis, welches nicht interpretiert werden konnte: %s\n", i, recstring);
+            if (getPlayerFromNumber(i) == NULL) {
+                fprintf(stderr, "Fehler! Habe ein Ergebnis für Spieler %d erhalten, aber zu dieser Nummer gibt es keine Spielerdaten.\n", i);
                 close(sock);
                 exit(EXIT_FAILURE);
+            } else {
+                if (strcmp(recstring, "Yes") == 0) {
+                    printf("%s (Spieler %d) hat gewonnen.\n", getPlayerFromNumber(i)->playerName, i);
+                } else if (strcmp(recstring, "No") == 0) {
+                    printf("%s (Spieler %d) hat verloren.\n", getPlayerFromNumber(i)->playerName, i);
+                } else {
+                    fprintf(stderr, "Fehler! Spieler %d hat folgendes Spielergebnis, welches nicht interpretiert werden konnte: %s\n", i, recstring);
+                    close(sock);
+                    exit(EXIT_FAILURE);
+                }
             }
         }
 

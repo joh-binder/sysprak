@@ -53,89 +53,6 @@ void resetBoard(void) {
     }
 }
 
-/* Wandelt einen Buchstabe-Zahl-Code in den Datentyp coordinate um.
- * Bei ungültigen Koordinaten (alles außer A-H und 1-8) sind die Koordinaten -1, -1. */
-coordinate codeToCoord(char code[2]) {
-    coordinate ret;
-    switch(code[0]) {
-        case 'A':
-        case 'a':
-            ret.xCoord = 0;
-            break;
-        case 'B':
-        case 'b':
-            ret.xCoord = 1;
-            break;
-        case 'C':
-        case 'c':
-            ret.xCoord = 2;
-            break;
-        case 'D':
-        case 'd':
-            ret.xCoord = 3;
-            break;
-        case 'E':
-        case 'e':
-            ret.xCoord = 4;
-            break;
-        case 'F':
-        case 'f':
-            ret.xCoord = 5;
-            break;
-        case 'G':
-        case 'g':
-            ret.xCoord = 6;
-            break;
-        case 'H':
-        case 'h':
-            ret.xCoord = 7;
-            break;
-        default:
-            ret.xCoord = -1;
-            break;
-    }
-    switch(code[1]) {
-        case '1':
-            ret.yCoord = 0;
-            break;
-        case '2':
-            ret.yCoord = 1;
-            break;
-        case '3':
-            ret.yCoord = 2;
-            break;
-        case '4':
-            ret.yCoord = 3;
-            break;
-        case '5':
-            ret.yCoord = 4;
-            break;
-        case '6':
-            ret.yCoord = 5;
-            break;
-        case '7':
-            ret.yCoord = 6;
-            break;
-        case '8':
-            ret.yCoord = 7;
-            break;
-        default:
-            ret.yCoord = -1;
-            break;
-    }
-    return ret;
-}
-
-/* Wandelt zwei gegebenene Ganzzahlen (0-7) in den Datentyp coordinate um.
- * Bei ungültigen Werten sind die Koordinaten -1, -1. */
-coordinate numsToCoord(int x, int y) {
-    coordinate ret;
-    if (x >= 0 && x <= 7) ret.xCoord = x;
-    else ret.xCoord = -1;
-    if (y >= 0 && y <= 7) ret.yCoord = y;
-    else ret.yCoord = -1;
-    return ret;
-}
 
 // Gibt den zu einer Koordinate auf dem Spielfeld gehörigen Pointer zurück; oder NULL bei ungültiger Koordinate.
 tower *getPointerToSquare(coordinate c) {
@@ -232,6 +149,8 @@ int addToSquare(coordinate c, char piece) {
     }
 }
 
+/* TODO differenzieren zwischen w/b und W/B -> unterschiedliche Züge erlaubt */
+/* TODO vielleicht überprüfen, ob Koordinaten überhaupt auf einer Diagonale zueinander sind*/
 /* Verschiebt einen Turm von einer angegebenen Koordinate an eine andere angegebene Koordinate. Druckt eine
  * Fehlermeldung, wenn das Ursprungsfeld leer oder das Zielfeld schon besetzt ist. Alle anderen Züge werden akzeptiert
  * (z.B. auch A1 -> H7), d.h. es muss beachtet werden, dass nur regelkonforme Züge an die Funktion übergeben werden.
@@ -260,6 +179,9 @@ int undoMoveTower(coordinate origin, coordinate target) {
     return moveTower(target, origin);
 }
 
+/* TODO target-Parameter ist unnötig, kann eigentlich aus victim berechnet werden. */
+/* TODO differenzieren zwischen w/b und W/B -> unterschiedliche Züge erlaubt */
+/* TODO vielleicht überprüfen, ob Koordinaten überhaupt auf einer Diagonale zueinander sind*/
 /* Nimmt den Turm, der an der Koordinate origin steht, schlägt den Turm, der an victim steht,
  * (d.h. entfernt den obersten Spielstein und fügt ihn zum eigenen Turm hinzu) und setzt den Ergebnisturm dann an die
  * Koordinate target.
@@ -380,6 +302,90 @@ void towerToString(char *target, coordinate c) {
     }
     ret[i+1] = '\0';
     strncpy(target, ret, 33);
+}
+
+/* Wandelt einen Buchstabe-Zahl-Code in den Datentyp coordinate um.
+ * Bei ungültigen Koordinaten (alles außer A-H und 1-8) sind die Koordinaten -1, -1. */
+coordinate codeToCoord(char code[2]) {
+    coordinate ret;
+    switch(code[0]) {
+        case 'A':
+        case 'a':
+            ret.xCoord = 0;
+            break;
+        case 'B':
+        case 'b':
+            ret.xCoord = 1;
+            break;
+        case 'C':
+        case 'c':
+            ret.xCoord = 2;
+            break;
+        case 'D':
+        case 'd':
+            ret.xCoord = 3;
+            break;
+        case 'E':
+        case 'e':
+            ret.xCoord = 4;
+            break;
+        case 'F':
+        case 'f':
+            ret.xCoord = 5;
+            break;
+        case 'G':
+        case 'g':
+            ret.xCoord = 6;
+            break;
+        case 'H':
+        case 'h':
+            ret.xCoord = 7;
+            break;
+        default:
+            ret.xCoord = -1;
+            break;
+    }
+    switch(code[1]) {
+        case '1':
+            ret.yCoord = 0;
+            break;
+        case '2':
+            ret.yCoord = 1;
+            break;
+        case '3':
+            ret.yCoord = 2;
+            break;
+        case '4':
+            ret.yCoord = 3;
+            break;
+        case '5':
+            ret.yCoord = 4;
+            break;
+        case '6':
+            ret.yCoord = 5;
+            break;
+        case '7':
+            ret.yCoord = 6;
+            break;
+        case '8':
+            ret.yCoord = 7;
+            break;
+        default:
+            ret.yCoord = -1;
+            break;
+    }
+    return ret;
+}
+
+/* Wandelt zwei gegebenene Ganzzahlen (0-7) in den Datentyp coordinate um.
+ * Bei ungültigen Werten sind die Koordinaten -1, -1. */
+coordinate numsToCoord(int x, int y) {
+    coordinate ret;
+    if (x >= 0 && x <= 7) ret.xCoord = x;
+    else ret.xCoord = -1;
+    if (y >= 0 && y <= 7) ret.yCoord = y;
+    else ret.yCoord = -1;
+    return ret;
 }
 
 /* Nimmt als Parameter einen String (sollte 3) und eine coordinate. Wandelt die Koordinate um in die

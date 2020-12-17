@@ -33,14 +33,6 @@ void resetTallocCounter(void);
 /* Setzt alle Pointer des Spielbretts auf NULL zurück. */
 void resetBoard(void);
 
-/* Wandelt einen Buchstabe-Zahl-Code in den Datentyp coordinate um.
- * Bei ungültigen Koordinaten (alles außer A-H und 1-8) sind die Koordinaten -1, -1. */
-coordinate codeToCoord(char code[2]);
-
-/* Wandelt zwei gegebenene Ganzzahlen (0-7) in den Datentyp coordinate um.
- * Bei ungültigen Werten sind die Koordinaten -1, -1. */
-coordinate numsToCoord(int x, int y);
-
 // Gibt den zu einer Koordinate auf dem Spielfeld gehörigen Pointer zurück; oder NULL bei ungültiger Koordinate.
 tower *getPointerToSquare(coordinate c);
 
@@ -88,6 +80,14 @@ int undoBeatTower(coordinate origin, coordinate victim, coordinate target);
  * Buchstaben (z.B. Bwwbw) und schreibt das Ergebnis in den String.
  */
 void towerToString(char *target, coordinate c);
+
+/* Wandelt einen Buchstabe-Zahl-Code in den Datentyp coordinate um.
+ * Bei ungültigen Koordinaten (alles außer A-H und 1-8) sind die Koordinaten -1, -1. */
+coordinate codeToCoord(char code[2]);
+
+/* Wandelt zwei gegebenene Ganzzahlen (0-7) in den Datentyp coordinate um.
+ * Bei ungültigen Werten sind die Koordinaten -1, -1. */
+coordinate numsToCoord(int x, int y);
 
 /* Nimmt als Parameter einen String (sollte 3) und eine coordinate. Wandelt die Koordinate um in die
  * Buchstabe-Zahl-Repräsentation (z.B. x = 4, y = 2 --> B3) und schreibt das Ergebnis in den String */

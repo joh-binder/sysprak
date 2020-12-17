@@ -13,7 +13,7 @@ void receive_msg(int sock, char *recmsg);
 
 void send_msg(int sock, char *sendmsg);
 
-void performConnection(int sock, char *gameID, int playerN, char *gamekindclient, struct gameInfo *pGame, struct playerInfo *pPlayer);
+void performConnection(int sock, char *gameID, int playerN, char *gamekindclient, struct gameInfo *pGame);
 
 /* Verhalten nach "+ MOVE <<Zugzeit>>" nur in der ersten Runde, d.h. wenn noch kein Shared-Memory-Bereich für die
  * Spielsteine existiert: Liest alle Spielsteine ein und speichert sie zwischen (mit malloc --> Leakgefahr, nochmal checken!).
@@ -27,7 +27,7 @@ void moveBehavior(int sock, struct line *pLine, struct gameInfo *pGame);
 
 /* Für das Verhalten nach der Zeile "+ GAMEOVER". Liest ein letztes Mal die Spielsteine ein und speichert sie im Shared
  * Memory; druckt dann eine Botschaft darüber aus, wer gewonnen/verloren hat. */
-void gameoverBehavior(int sock, struct line *pLine, struct gameInfo *pGame, struct playerInfo *pPlayer);
+void gameoverBehavior(int sock, struct line *pLine, struct gameInfo *pGame);
 
 /* Liest "+ PIECESLIST", alle Spielsteine und "+ ENDPIECESLIST". Schreibt die Spielsteine in Form von struct line-s
  * in den dafür vorgesehenen Shmemory-Bereich (beginnt bei pLine). Schreibt außerdem in pGame->sizeMoveShmem
