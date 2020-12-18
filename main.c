@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -18,15 +19,18 @@
 #define PIPE_BUFFER 256
 #define MAX_NUMBER_OF_PLAYERS 10
 
+static bool signalFlag = false;
 
-// speichert die IP-Adresse von Hostname in punktierter Darstellung in einem char Array ab
-void hostnameToIp(char *ipA, char *hostname) {
+/* Speichert die IP-Adresse von Hostname in punktierter Darstellung in einem char Array ab.
+ * Gibt -1 im Fehlerfall zurück, sonst 0. */
+int hostnameToIp(char *ipA, char *hostname) {
     struct in_addr **addr_list;
     struct hostent *host;
 
     host = gethostbyname(hostname);
     if (host==NULL){
         herror("Konnte Rechner nicht finden");
+	return -1;
     }
 
     addr_list = (struct in_addr **) host->h_addr_list;
@@ -34,12 +38,13 @@ void hostnameToIp(char *ipA, char *hostname) {
     for (int i = 0; addr_list[i] != NULL; i++) {
         strcpy(ipA, inet_ntoa(*addr_list[i]));
     }
+    return 0;
 }
 
 // signal handler Thinker (= parent)
 void sigHandlerParent(int sig_nr) {
     printf("Thinker: Signal (%d) bekommen vom Connector. \n", sig_nr);
-    //think();
+    signalFlag = true;
 }
 
 int main(int argc, char *argv[]) {
@@ -138,7 +143,11 @@ int main(int argc, char *argv[]) {
         address.sin_family = AF_INET;
         address.sin_port = htons(configInfo.portNumber);
         char ip[IP_BUFFER]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
-        hostnameToIp(ip, configInfo.hostName);
+        if (hostnameToIp(ip, configInfo.hostName) == -1) {
+		shmDelete(shmidGeneralInfo);
+		shmDelete(shmidPlayerInfo);
+		return EXIT_FAILURE;
+	}
 
         // Socket erstellen
         if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -189,7 +198,11 @@ int main(int argc, char *argv[]) {
 	}
 	// auf Signal warten
 	pause();
-
+	
+	// Flag abfragen
+	if (signalFlag) { 
+		//think();
+	}
         // Shared-Memory-Bereiche aufräumen
         if (shmDelete(shmidGeneralInfo) > 0) return EXIT_FAILURE;
         if (shmDelete(shmidPlayerInfo) > 0) return EXIT_FAILURE;
