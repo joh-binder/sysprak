@@ -79,13 +79,14 @@ char getTopPiece(coordinate c) {
 
 // Druckt zu jedem Feld auf dem Spielbrett den obersten Spielstein formatiert aus.
 void printTopPieces(void) {
-    printf("  A B C D E F G H\n");
+    printf("   A B C D E F G H\n");
     printf(" +-----------------+\n");
     for (int i = 7; i >= 0; i--) {
         printf("%d| ", i+1);
         for (int j = 0; j < 8; j++) {
             if (getPointerToSquare(numsToCoord(j, i)) == (tower *)NULL) {
-                printf("- ");
+                if (j % 2 == i % 2) printf("_ ");
+                else printf(". ");
             } else {
                 printf("%c ", getTopPiece(numsToCoord(j, i)));
             }
@@ -133,6 +134,7 @@ void printFull(void) {
             }
         }
     }
+    printf("\n");
 }
 
 /* Erzeugt einen neuen tower/Spielstein und setzt ihn auf das Spielbrett. Verlangt dazu als Parameter eine
@@ -152,54 +154,177 @@ int addToSquare(coordinate c, char piece) {
     }
 }
 
-/* Verschiebt einen Turm von einer angegebenen Koordinate an eine andere angegebene Koordinate. Druckt eine
- * Fehlermeldung, wenn das Ursprungsfeld leer oder das Zielfeld schon besetzt ist. Alle anderen Züge werden akzeptiert
- * (z.B. auch A1 -> H7), d.h. es muss beachtet werden, dass nur regelkonforme Züge an die Funktion übergeben werden.
- * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
-int moveTower(coordinate origin, coordinate target) {
-    if (origin.xCoord == target.xCoord && origin.yCoord == target.yCoord) {
-        fprintf(stderr, "Fehler! Ursprungs- und Zielfeld sind gleich.\n");
+/* Gegeben eine Ursprungs- und eine Zielkoordinate, überprüft ob es erlaubt wäre, den Turm so zu bewegen. Wenn ja,
+ * gibt 0 zurück; wenn nein, gibt -1 zurück. */
+int checkMove(coordinate origin, coordinate target) {
+    if (target.xCoord == -1 || target.yCoord == -1) {
+        // fprintf(stderr, "Fehler! Ungültige Zielkoordinate.\n");
+        return -1;
+    } else if (origin.xCoord == target.xCoord && origin.yCoord == target.yCoord) {
+        // fprintf(stderr, "Fehler! Ursprungs- und Zielfeld sind gleich.\n");
         return -1;
     } else if (abs(origin.xCoord-target.xCoord) != abs(origin.yCoord-target.yCoord)) {
-        fprintf(stderr, "Fehler! Ursprungs- und Zielfeld liegen nicht auf einer Diagonale.\n");
+        // fprintf(stderr, "Fehler! Ursprungs- und Zielfeld liegen nicht auf einer Diagonale.\n");
         return -1;
     } else if (getPointerToSquare(origin) == NULL) {
         char code[3];
         coordToCode(code, origin);
-        fprintf(stderr, "Fehler! Auf dem Ursprungsfeld %s liegt liegt gar kein Stein.\n", code);
+        // fprintf(stderr, "Fehler! Auf dem Ursprungsfeld %s liegt liegt gar kein Stein.\n", code);
         return -1;
     } else if (getPointerToSquare(target) != NULL) {
-        char code[3];
-        coordToCode(code, target);
-        fprintf(stderr, "Fehler! Auf dem Zielfeld %s liegt schon ein Stein.\n", code);
+        // char code[3];
+        // coordToCode(code, target);
+        // fprintf(stderr, "Fehler! Auf dem Zielfeld %s liegt schon ein Stein.\n", code);
         return -1;
     } else if (getTopPiece(origin) == 'w' && target.yCoord-origin.yCoord != 1) {
-        fprintf(stderr, "Fehler! Ein normaler weißer Turm darf nur genau ein Feld diagonal nach vorne ziehen.\n");
+        // fprintf(stderr, "Fehler! Ein normaler weißer Turm darf nur genau ein Feld diagonal vorwärts ziehen.\n");
         return -1;
     } else if (getTopPiece(origin) == 'b' && target.yCoord-origin.yCoord != -1) {
-        fprintf(stderr, "Fehler! Ein normaler schwarzer Turm darf nur genau ein Feld diagonal nach vorne ziehen.\n");
+        // fprintf(stderr, "Fehler! Ein normaler schwarzer Turm darf nur genau ein Feld diagonal vorwärts ziehen.\n");
         return -1;
-    } else {
-        // Spielsteine umsetzen
-        board[8*target.yCoord + target.xCoord] = getPointerToSquare(origin);
-        board[8*origin.yCoord + origin.xCoord] = NULL;
+    }
 
-        // evtl. Verwandlung in Dame
-        if (getTopPiece(target) == 'w' & target.yCoord == 7) {
-            getPointerToSquare(target)->piece = 'W';
-            justConvertedToQueen = true;
-        } else if (getTopPiece(target) == 'b' & target.yCoord == 0) {
-            getPointerToSquare(target)->piece = 'B';
-            justConvertedToQueen = true;
+    // überprüft, ob auf den Feldern zwischen Origin und Target etwas steht
+    int xDirection = getSign(target.xCoord-origin.xCoord);
+    int yDirection = getSign(target.yCoord-origin.yCoord);
+    int i = origin.xCoord + xDirection;
+    int j = origin.xCoord + yDirection;
+    while (i != target.xCoord) {
+        if (getPointerToSquare(numsToCoord(i, j)) != NULL) {
+//            char code[3];
+//            coordToCode(code, numsToCoord(i,j));
+//            fprintf(stderr, "Fehler! Auf dem Feld %s zwischen Origin und Target steht ein Turm. Der Zug ist deshalb nicht möglich.\n", code);
+            return -1;
         }
+        i += xDirection;
+        j += yDirection;
+    }
 
-        return 0;
+    return 0;
+}
+
+/* Verschiebt einen Turm von einer angegebenen Koordinate an eine andere angegebene Koordinate. Dieser Zug wird, soweit
+ * möglich, ausgeführt, ohne Rücksicht auf Gültigkeit zu nehmen. Es sollten also nur Koordinaten verwendet werden,
+ * deren Regelkonformität vorher mit checkMove geprüft wurden. */
+void moveTower(coordinate origin, coordinate target) {
+    // Spielsteine umsetzen
+    board[8*target.yCoord + target.xCoord] = getPointerToSquare(origin);
+    board[8*origin.yCoord + origin.xCoord] = NULL;
+
+    // evtl. Verwandlung in Dame
+    if (getTopPiece(target) == 'w' & target.yCoord == 7) {
+        getPointerToSquare(target)->piece = 'W';
+        justConvertedToQueen = true;
+    } else if (getTopPiece(target) == 'b' & target.yCoord == 0) {
+        getPointerToSquare(target)->piece = 'B';
+        justConvertedToQueen = true;
     }
 }
 
-/* Macht eine moveTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich.
- * Gibt keinen Kontrollwert zurück, weil angenommen wird, dass die Funktion nicht eigenständig aufgerufen wird,
- * sondern nur in Folge einer gültigen moveTower-Operation (-> dort Rückgabewert checken) */
+/* Gegeben eine Koordinate, an der ein Turm steht. Testet, an welche Felder der Turm verschoben werden kann.
+ * (Im Moment nur als Kommandozeilenausgabe) */
+void tryAllMoves(coordinate origin) {
+
+    char strOrigin[3];
+    char strTarget[3];
+    int newX, newY;
+    coordToCode(strOrigin, origin);
+
+    // normaler Turm
+    if (getTopPiece(origin) == 'w' || getTopPiece(origin) == 'b') {
+
+        if (getTopPiece(origin) == 'w') newY = origin.yCoord + 1;
+        else newY = origin.yCoord - 1;
+
+        // TODO Die beiden Schleifen kann man bestimmt zusammenfassen
+        newX = origin.xCoord + 1;
+        if (checkMove(origin, numsToCoord(newX, newY)) == 0) {
+            moveTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoMoveTower(origin, numsToCoord(newX, newY));
+        }
+
+        newX = origin.xCoord - 1;
+        if (checkMove(origin, numsToCoord(newX, newY)) == 0) {
+            moveTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoMoveTower(origin, numsToCoord(newX, newY));
+        }
+
+    }
+
+    // Turm mit Dame oben
+    if (getTopPiece(origin) == 'W' || getTopPiece(origin) == 'B') {
+
+        // TODO Schleifen zusammenfassen
+        for (int i = 1; i < 8; i++) {
+            newX = origin.xCoord + i;
+            newY = origin.yCoord + i;
+
+            if (checkMove(origin, numsToCoord(newX, newY)) != 0) break;
+
+            moveTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoMoveTower(origin, numsToCoord(newX, newY));
+        }
+
+        for (int i = 1; i < 8; i++) {
+            newX = origin.xCoord + i;
+            newY = origin.yCoord - i;
+
+            if (checkMove(origin, numsToCoord(newX, newY)) != 0) break;
+
+            moveTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoMoveTower(origin, numsToCoord(newX, newY));
+        }
+
+        for (int i = 1; i < 8; i++) {
+            newX = origin.xCoord - i;
+            newY = origin.yCoord + i;
+
+            if (checkMove(origin, numsToCoord(newX, newY)) != 0) break;
+
+            moveTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoMoveTower(origin, numsToCoord(newX, newY));
+        }
+
+        for (int i = 1; i < 8; i++) {
+            newX = origin.xCoord - i;
+            newY = origin.yCoord - i;
+
+            if (checkMove(origin, numsToCoord(newX, newY)) != 0) break;
+
+            moveTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoMoveTower(origin, numsToCoord(newX, newY));
+        }
+    }
+
+
+}
+
+/* Macht eine moveTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Sollte nicht eigenständig
+ * aufgerufen werden, sondern nur in Folge einer gültigen moveTower-Operation. */
 void undoMoveTower(coordinate origin, coordinate target) {
     // evtl. Damenumwandlung rückgängig machen
     if (getTopPiece(target) == 'W' && justConvertedToQueen) {
@@ -213,28 +338,24 @@ void undoMoveTower(coordinate origin, coordinate target) {
     moveTower(target, origin);
 }
 
-
-/* Nimmt den Turm, der an der Koordinate origin steht, schlägt den Turm, der an victim steht,
- * (d.h. entfernt den obersten Spielstein und fügt ihn zum eigenen Turm hinzu) und setzt den Ergebnisturm dann an die
- * Koordinate target.
- *
- * Gibt eine Fehlermeldung aus, wenn origin oder victim leer sind oder target schon besetzt ist, sowie wenn die
- * Diagonale zwischen origin und victim nicht frei ist; oder wenn victim nicht zu target passt.
- * Ansonsten muss aber selbst sichergestellt werden, dass die übergebenen Züge regelkonform sind.
- *
- * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
-int captureTower(coordinate origin, coordinate target) {
-    if (origin.xCoord == target.xCoord && origin.yCoord == target.yCoord) {
-        fprintf(stderr, "Fehler! Ursprungs- und Zielfeld sind gleich.\n");
+/* Gegeben eine Ursprungs- und eine Zielkoordinate, überprüft ob es erlaubt wäre, mit dem Turm so zu schlagen.
+ * [Beachte: Target ist nicht das Feld des Turms, der geschlagen wird, sondern das Feld dahinter, auf dem der
+ * eigene Turm abgestellt wird.] Wenn ja, gibt 0 zurück; wenn nein, gibt -1 zurück. */
+int checkCapture(coordinate origin, coordinate target) {
+    if (target.xCoord == -1 || target.yCoord == -1) {
+        // fprintf(stderr, "Fehler! Zielkoordinaten sind ungültig.\n");
+        return -1;
+    } else if (origin.xCoord == target.xCoord && origin.yCoord == target.yCoord) {
+        // fprintf(stderr, "Fehler! Ursprungs- und Zielfeld sind gleich.\n");
         return -1;
     } else if (abs(origin.xCoord-target.xCoord) != abs(origin.yCoord-target.yCoord)) {
-        fprintf(stderr, "Fehler! Ursprungs- und Zielfeld liegen nicht auf einer Diagonale.\n");
+        // fprintf(stderr, "Fehler! Ursprungs- und Zielfeld liegen nicht auf einer Diagonale.\n");
         return -1;
     } else if ((getTopPiece(origin) == 'b' || getTopPiece(origin) == 'w') && abs(origin.xCoord-target.xCoord) != 2) {
-        fprintf(stderr, "Fehler! Um mit einem normalen Turm zu schlagen, müssen Ursprungs- und Zielfeld diagonal genau zwei Felder entfernt sein.\n");
+        // fprintf(stderr, "Fehler! Um mit einem normalen Turm zu schlagen, müssen Ursprungs- und Zielfeld diagonal genau zwei Felder entfernt sein.\n");
         return -1;
     } else if ((getTopPiece(origin) == 'B' || getTopPiece(origin) == 'B') && abs(origin.xCoord-target.xCoord) < 2) {
-        fprintf(stderr, "Fehler! Um mit einer Dame zu schlagen, müssen Ursprungs- und Zielfeld diagonal mindestens zwei Felder entfernt sein.\n");
+        // fprintf(stderr, "Fehler! Um mit einer Dame zu schlagen, müssen Ursprungs- und Zielfeld diagonal mindestens zwei Felder entfernt sein.\n");
         return -1;
     }
 
@@ -246,21 +367,21 @@ int captureTower(coordinate origin, coordinate target) {
     victim.yCoord = target.yCoord - yDirection;
 
     if ((getTopPiece(origin) == 'b' || getTopPiece(origin) == 'B') && (getTopPiece(victim) == 'b' || getTopPiece(victim) == 'B')) {
-        fprintf(stderr, "Fehler! Ein schwarzer Turm kann keinen anderen schwarzen Turm schlagen.\n");
+        // fprintf(stderr, "Fehler! Ein schwarzer Turm kann keinen anderen schwarzen Turm schlagen.\n");
         return -1;
     } else if ((getTopPiece(origin) == 'w' || getTopPiece(origin) == 'W') && (getTopPiece(victim) == 'w' || getTopPiece(victim) == 'W')) {
-        fprintf(stderr, "Fehler! Ein weißer Turm kann keinen anderen weißen Turm schlagen.\n");
+        // fprintf(stderr, "Fehler! Ein weißer Turm kann keinen anderen weißen Turm schlagen.\n");
         return -1;
     }
 
     // überprüft, ob auf den Feldern zwischen Origin und Victim etwas steht
     int i = origin.xCoord + xDirection;
-    int j = origin.xCoord + yDirection;
+    int j = origin.yCoord + yDirection;
     while (i != victim.xCoord) {
         if (getPointerToSquare(numsToCoord(i, j)) != NULL) {
-            char code[3];
-            coordToCode(code, numsToCoord(i,j));
-            fprintf(stderr, "Fehler! Auf dem Feld %s zwischen Origin und Victim steht ein Turm. Schlagen ist deshalb nicht möglich.\n", code);
+            // char code[3];
+            // coordToCode(code, numsToCoord(i,j));
+            // fprintf(stderr, "Fehler! Auf dem Feld %s zwischen Origin und Victim steht ein Turm. Schlagen ist deshalb nicht möglich.\n", code);
             return -1;
         }
         i += xDirection;
@@ -268,24 +389,38 @@ int captureTower(coordinate origin, coordinate target) {
     }
 
     if (getPointerToSquare(origin) == NULL) {
-        char code[3];
-        coordToCode(code, origin);
-        fprintf(stderr, "Fehler! Auf dem Ursprungsfeld %s liegt gar kein Stein.\n", code);
+        // char code[3];
+        // coordToCode(code, origin);
+        // fprintf(stderr, "Fehler! Auf dem Ursprungsfeld %s liegt gar kein Stein.\n", code);
         return -1;
     } else if (getPointerToSquare(victim) == NULL) {
-        char code[3];
-        coordToCode(code, victim);
-        fprintf(stderr, "Fehler! Auf dem Feld %s ist gar kein Stein, der geschlagen werden könnte.\n", code);
+        // char code[3];
+        // coordToCode(code, victim);
+        // fprintf(stderr, "Fehler! Auf dem Feld %s ist gar kein Stein, der geschlagen werden könnte.\n", code);
         return -1;
     } else if (getPointerToSquare(target) != NULL) {
-        char code[3];
-        coordToCode(code, target);
-        fprintf(stderr, "Fehler! Auf dem Zielfeld %s steht schon ein Turm.\n", code);
+        // char code[3];
+        // coordToCode(code, target);
+        // fprintf(stderr, "Fehler! Auf dem Zielfeld %s steht schon ein Turm.\n", code);
         return -1;
     }
 
+    return 0;
+}
 
-    // ab hier tatsächliche Versetzung der Spielsteine
+/* Nimmt den Turm, der an der Koordinate origin steht, schlägt den Turm, vor dem Feld target steht,
+ * (d.h. entfernt den obersten Spielstein und fügt ihn zum eigenen Turm hinzu) und setzt den Ergebnisturm dann an die
+ * Koordinate target. Dieser Zug wird, soweit möglich, ausgeführt, ohne Rücksicht auf Gültigkeit zu nehmen.
+ * Es sollten also nur Koordinaten verwendet werden, deren Regelkonformität vorher mit checkCapture geprüft wurden. */
+void captureTower(coordinate origin, coordinate target) {
+    // berechne die Koordinate für das Feld victim
+    int xDirection = getSign(target.xCoord-origin.xCoord);
+    int yDirection = getSign(target.yCoord-origin.yCoord);
+    coordinate victim;
+    victim.xCoord = target.xCoord - xDirection;
+    victim.yCoord = target.yCoord - yDirection;
+
+    // Versetzung der Spielsteine
     tower *pNewVictimTower = getPointerToSquare(victim)->next;
     tower *pTowerForTarget = getPointerToSquare(origin);
 
@@ -309,12 +444,10 @@ int captureTower(coordinate origin, coordinate target) {
         justConvertedToQueen = true;
     }
 
-    return 0;
 }
 
-/* Macht eine captureTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich.
- * Gibt keinen Kontrollwert zurück, weil angenommen wird, dass die Funktion nicht eigenständig aufgerufen wird,
- * sondern nur in Folge einer gültigen captureTower-Operation (-> dort Rückgabewert checken) */
+/* Macht eine captureTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Es wird angenommen, dass die
+ * Funktion nicht eigenständig aufgerufen wird, sondern nur in Folge einer gültigen captureTower-Operation. */
 void undoCaptureTower(coordinate origin, coordinate target) {
 
     // berechne die Koordinate für das Feld victim
@@ -333,11 +466,13 @@ void undoCaptureTower(coordinate origin, coordinate target) {
         justConvertedToQueen = false;
     }
 
+    // ab hier eigentliches Umversetzen
     tower *pCurrent = getPointerToSquare(target);
     tower *pBottomPieceOfTarget;
     while (pCurrent->next->next != NULL) {
         pCurrent = pCurrent->next;
     }
+
     pBottomPieceOfTarget = pCurrent->next;
     pCurrent->next = NULL;
 
@@ -346,6 +481,107 @@ void undoCaptureTower(coordinate origin, coordinate target) {
 
     board[8*origin.yCoord+origin.xCoord] = getPointerToSquare(target);
     board[8*target.yCoord+target.xCoord] = NULL;
+}
+
+void tryAllCaptures(coordinate origin) {
+    char strOrigin[3];
+    char strTarget[3];
+    int newX, newY;
+    coordToCode(strOrigin, origin);
+
+    // normaler Turm
+    if (getTopPiece(origin) == 'w' || getTopPiece(origin) == 'b') {
+
+        if (getTopPiece(origin) == 'w') newY = origin.yCoord + 2;
+        else newY = origin.yCoord - 2;
+
+        // TODO Die beiden Schleifen kann man bestimmt zusammenfassen
+        newX = origin.xCoord + 2;
+        if (checkCapture(origin, numsToCoord(newX, newY)) == 0) {
+            captureTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoCaptureTower(origin, numsToCoord(newX, newY));
+        }
+
+        newX = origin.xCoord - 2;
+        if (checkCapture(origin, numsToCoord(newX, newY)) == 0) {
+            captureTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoCaptureTower(origin, numsToCoord(newX, newY));
+        }
+
+    }
+
+    // Turm mit Dame oben
+    if (getTopPiece(origin) == 'W' || getTopPiece(origin) == 'B') {
+
+        // TODO Schleifen zusammenfassen
+        for (int i = 2; i < 8; i++) {
+            newX = origin.xCoord + i;
+            newY = origin.yCoord + i;
+
+            if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
+
+            captureTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoCaptureTower(origin, numsToCoord(newX, newY));
+            break;
+        }
+
+        for (int i = 2; i < 8; i++) {
+            newX = origin.xCoord + i;
+            newY = origin.yCoord - i;
+
+            if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
+
+            captureTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoCaptureTower(origin, numsToCoord(newX, newY));
+            break;
+        }
+
+        for (int i = 2; i < 8; i++) {
+            newX = origin.xCoord - i;
+            newY = origin.yCoord + i;
+
+            if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
+
+            captureTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoCaptureTower(origin, numsToCoord(newX, newY));
+            break;
+        }
+
+        for (int i = 2; i < 8; i++) {
+            newX = origin.xCoord - i;
+            newY = origin.yCoord - i;
+
+            if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
+
+            captureTower(origin, numsToCoord(newX, newY));
+
+            coordToCode(strTarget, numsToCoord(newX, newY));
+            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+
+            undoCaptureTower(origin, numsToCoord(newX, newY));
+            break;
+        }
+    }
 }
 
 /* Nimmt als Parameter einen String (sollte 33 Chars aufnehmen können), ein Spielbrett und eine Koordinate.

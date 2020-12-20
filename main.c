@@ -182,6 +182,8 @@ int main(int argc, char *argv[]) {
         pBoard = malloc(sizeof(tower *) * 64);
         setUpBoard(pBoard);
 
+        char ownNormalTower, ownQueenTower;
+
         wait(NULL);
 
         // Shared-Memory für die Spielzüge aufrufen
@@ -204,27 +206,45 @@ int main(int argc, char *argv[]) {
             }
         }
 
+//        addToSquare(codeToCoord("B4"), 'W');
+//        addToSquare(codeToCoord("D2"), 'b');
+//        addToSquare(codeToCoord("F4"), 'w');
+//        addToSquare(codeToCoord("E5"), 'b');
+//        addToSquare(codeToCoord("E7"), 'b');
+//        addToSquare(codeToCoord("D6"), 'w');
+
+
+        if (pGeneralInfo->ownPlayerNumber == 0) {
+            ownNormalTower = 'w';
+            ownQueenTower = 'W';
+        } else if (pGeneralInfo->ownPlayerNumber == 1) {
+            ownNormalTower = 'b';
+            ownQueenTower = 'B';
+        } else {
+            fprintf(stderr, "Fehler! Eigene Spielernummer ist weder 0 noch 1.\n");
+            cleanupMain();
+            return EXIT_FAILURE;
+        }
+
         printFull();
 
-        moveTower(codeToCoord("E3"), codeToCoord("D4"));
-        printFull();
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
+                    continue;
+                }
+                tryAllCaptures(numsToCoord(i,j));
+            }
+        }
 
-
-
-//        //angenommen, wir wären in einer neuen Iteration --> alles löschen, Steine neu setzen
-//        resetTallocCounter();
-//        resetBoard();
-//
-//        addToSquare(codeToCoord("A1"), 'W');
-//        addToSquare(codeToCoord("D4"), 'w');
-//        addToSquare(codeToCoord("D4"), 'b');
-//        addToSquare(codeToCoord("D4"), 'b');
-//
-//        printFull();
-//        captureTower(codeToCoord("A1"), codeToCoord("E5"));
-//        printFull();
-//        undoCaptureTower(codeToCoord("A1"), codeToCoord("E5"));
-//        printFull();
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
+                    continue;
+                }
+                tryAllMoves(numsToCoord(i,j));
+            }
+        }
 
 
         // Aufräumarbeiten

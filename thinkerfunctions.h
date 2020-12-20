@@ -50,32 +50,39 @@ void printFull(void);
  * Zielkoordinate und die Art des Spielsteins (als Char). */
 int addToSquare(coordinate c, char piece);
 
-/* Verschiebt einen Turm von einer angegebenen Koordinate an eine andere angegebene Koordinate. Druckt eine
- * Fehlermeldung, wenn das Ursprungsfeld leer oder das Zielfeld schon besetzt ist. Alle anderen Züge werden akzeptiert
- * (z.B. auch A1 -> H7), d.h. es muss beachtet werden, dass nur regelkonforme Züge an die Funktion übergeben werden.
- * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
-int moveTower(coordinate origin, coordinate target);
+/* Gegeben eine Ursprungs- und eine Zielkoordinate, überprüft ob es erlaubt wäre, den Turm so zu bewegen. Wenn ja,
+ * gibt 0 zurück; wenn nein, gibt -1 zurück. */
+int checkMove(coordinate origin, coordinate target);
 
-/* Macht eine moveTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich.
- * Gibt keinen Kontrollwert zurück, weil angenommen wird, dass die Funktion nicht eigenständig aufgerufen wird,
- * sondern nur in Folge einer gültigen moveTower-Operation (-> dort Rückgabewert checken) */
+/* Verschiebt einen Turm von einer angegebenen Koordinate an eine andere angegebene Koordinate. Dieser Zug wird, soweit
+ * möglich, ausgeführt, ohne Rücksicht auf Gültigkeit zu nehmen. Es sollten also nur Koordinaten verwendet werden,
+ * deren Regelkonformität vorher mit checkMove geprüft wurden. */
+void moveTower(coordinate origin, coordinate target);
+
+/* Macht eine moveTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Sollte nicht eigenständig
+ * aufgerufen werden, sondern nur in Folge einer gültigen moveTower-Operation. */
 void undoMoveTower(coordinate origin, coordinate target);
 
-/* Nimmt den Turm, der an der Koordinate origin steht, schlägt den Turm, der an victim steht,
- * (d.h. entfernt den obersten Spielstein und fügt ihn zum eigenen Turm hinzu) und setzt den Ergebnisturm dann an die
- * Koordinate target.
- *
- * Gibt eine Fehlermeldung aus, wenn origin oder victim leer sind oder target schon besetzt ist, sowie wenn die
- * Diagonale zwischen origin und victim nicht frei ist; oder wenn victim nicht zu target passt.
- * Ansonsten muss aber selbst sichergestellt werden, dass die übergebenen Züge regelkonform sind.
- *
- * Gibt 0 bei Erfolg und -1 bei Fehler zurück. */
-int captureTower(coordinate origin, coordinate target);
+/* Gegeben eine Koordinate, an der ein Turm steht. Testet, an welche Felder der Turm verschoben werden kann.
+ * (Im Moment nur als Kommandozeilenausgabe) */
+void tryAllMoves(coordinate origin);
 
-/* Macht eine captureTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich.
- * Gibt keinen Kontrollwert zurück, weil angenommen wird, dass die Funktion nicht eigenständig aufgerufen wird,
- * sondern nur in Folge einer gültigen captureTower-Operation (-> dort Rückgabewert checken) */
+/* Gegeben eine Ursprungs- und eine Zielkoordinate, überprüft ob es erlaubt wäre, mit dem Turm so zu schlagen.
+ * [Beachte: Target ist nicht das Feld des Turms, der geschlagen wird, sondern das Feld dahinter, auf dem der
+ * eigene Turm abgestellt wird.] Wenn ja, gibt 0 zurück; wenn nein, gibt -1 zurück. */
+int checkCapture(coordinate origin, coordinate target);
+
+/* Nimmt den Turm, der an der Koordinate origin steht, schlägt den Turm, vor dem Feld target steht,
+ * (d.h. entfernt den obersten Spielstein und fügt ihn zum eigenen Turm hinzu) und setzt den Ergebnisturm dann an die
+ * Koordinate target. Dieser Zug wird, soweit möglich, ausgeführt, ohne Rücksicht auf Gültigkeit zu nehmen.
+ * Es sollten also nur Koordinaten verwendet werden, deren Regelkonformität vorher mit checkCapture geprüft wurden. */
+void captureTower(coordinate origin, coordinate target);
+
+/* Macht eine captureTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Es wird angenommen, dass die
+ * Funktion nicht eigenständig aufgerufen wird, sondern nur in Folge einer gültigen captureTower-Operation. */
 void undoCaptureTower(coordinate origin, coordinate target);
+
+void tryAllCaptures(coordinate origin);
 
 /* Nimmt als Parameter einen String (sollte 33 Chars aufnehmen können), ein Spielbrett und eine Koordinate.
  * Repräsentiert alle Spielsteine, aus denen der Turm an der angegebenen Kooordinate besteht, als Folge von
