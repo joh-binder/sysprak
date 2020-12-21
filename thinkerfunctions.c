@@ -107,13 +107,11 @@ void printFull(void) {
         for (int j = 0; j < 8; j++) {
             char topPiece = getTopPiece(numsToCoord(i, j));
             if (topPiece == 'w' || topPiece == 'W') {
-                char *towerBuffer = malloc(33 * sizeof(char));
-                char *coordinateBuffer = malloc(3 * sizeof(char));
+                char towerBuffer[33];
+                char coordinateBuffer[3];
                 towerToString(towerBuffer, numsToCoord(i, j));
                 coordToCode(coordinateBuffer, numsToCoord(i, j));
                 printf("%s: %s\n", coordinateBuffer, towerBuffer);
-                free(towerBuffer);
-                free(coordinateBuffer);
             }
         }
     }
@@ -124,13 +122,11 @@ void printFull(void) {
         for (int j = 0; j < 8; j++) {
             char topPiece = getTopPiece(numsToCoord(j, i));
             if (topPiece == 'b' || topPiece == 'B') {
-                char *towerBuffer = malloc(33 * sizeof(char));
-                char *coordinateBuffer = malloc(3 * sizeof(char));
+                char towerBuffer[33];
+                char coordinateBuffer[3];
                 towerToString(towerBuffer, numsToCoord(j, i));
                 coordToCode(coordinateBuffer, numsToCoord(j, i));
                 printf("%s: %s\n", coordinateBuffer, towerBuffer);
-                free(towerBuffer);
-                free(coordinateBuffer);
             }
         }
     }
@@ -188,7 +184,7 @@ int checkMove(coordinate origin, coordinate target) {
     int xDirection = getSign(target.xCoord-origin.xCoord);
     int yDirection = getSign(target.yCoord-origin.yCoord);
     int i = origin.xCoord + xDirection;
-    int j = origin.xCoord + yDirection;
+    int j = origin.yCoord + yDirection;
     while (i != target.xCoord) {
         if (getPointerToSquare(numsToCoord(i, j)) != NULL) {
 //            char code[3];
@@ -198,6 +194,7 @@ int checkMove(coordinate origin, coordinate target) {
         }
         i += xDirection;
         j += yDirection;
+
     }
 
     return 0;
@@ -223,12 +220,15 @@ void moveTower(coordinate origin, coordinate target) {
 
 /* Gegeben eine Koordinate, an der ein Turm steht. Testet, an welche Felder der Turm verschoben werden kann.
  * (Im Moment nur als Kommandozeilenausgabe) */
-void tryAllMoves(coordinate origin) {
+move tryAllMoves(coordinate origin) {
 
     char strOrigin[3];
     char strTarget[3];
     int newX, newY;
     coordToCode(strOrigin, origin);
+
+    move bestMove = createMoveStruct();
+    int rating;
 
     // normaler Turm
     if (getTopPiece(origin) == 'w' || getTopPiece(origin) == 'b') {
@@ -236,25 +236,31 @@ void tryAllMoves(coordinate origin) {
         if (getTopPiece(origin) == 'w') newY = origin.yCoord + 1;
         else newY = origin.yCoord - 1;
 
-        // TODO Die beiden Schleifen kann man bestimmt zusammenfassen
-        newX = origin.xCoord + 1;
-        if (checkMove(origin, numsToCoord(newX, newY)) == 0) {
-            moveTower(origin, numsToCoord(newX, newY));
+        for (int round = 0; round < 2; round++) {   // 2, weil einmal nach links und einmal nach rechts
+            switch (round) {
+                case 0:
+                    newX = origin.xCoord + 1;
+                    break;
+                case 1:
+                    newX = origin.xCoord - 1;
+                    break;
+            }
 
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
+            if (checkMove(origin, numsToCoord(newX, newY)) == 0) {
+                moveTower(origin, numsToCoord(newX, newY));
 
-            undoMoveTower(origin, numsToCoord(newX, newY));
-        }
+                coordToCode(strTarget, numsToCoord(newX, newY));
+                printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-        newX = origin.xCoord - 1;
-        if (checkMove(origin, numsToCoord(newX, newY)) == 0) {
-            moveTower(origin, numsToCoord(newX, newY));
+                rating = 1; // später feingranularer berechnen
+                if (rating > bestMove.rating) {
+                    bestMove.origin = origin;
+                    bestMove.target = numsToCoord(newX, newY);
+                    bestMove.rating = rating;
+                }
 
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
-
-            undoMoveTower(origin, numsToCoord(newX, newY));
+                undoMoveTower(origin, numsToCoord(newX, newY));
+            }
         }
 
     }
@@ -262,65 +268,52 @@ void tryAllMoves(coordinate origin) {
     // Turm mit Dame oben
     if (getTopPiece(origin) == 'W' || getTopPiece(origin) == 'B') {
 
-        // TODO Schleifen zusammenfassen
-        for (int i = 1; i < 8; i++) {
-            newX = origin.xCoord + i;
-            newY = origin.yCoord + i;
+        int xDirection, yDirection;
+        for (int round = 0; round < 4; round++) { // 4, weil vorne links, vorne rechts, hinten links, hinten rechts
+            switch (round) {
+                case 0:
+                    xDirection = 1;
+                    yDirection = 1;
+                    break;
+                case 1:
+                    xDirection = 1;
+                    yDirection = -1;
+                    break;
+                case 2:
+                    xDirection = -1;
+                    yDirection = 1;
+                    break;
+                case 3:
+                    xDirection = -1;
+                    yDirection = -1;
+                    break;
+            }
 
-            if (checkMove(origin, numsToCoord(newX, newY)) != 0) break;
+            for (int i = 1; i < 8; i++) {
+                newX = origin.xCoord + i * xDirection;
+                newY = origin.yCoord + i * yDirection;
 
-            moveTower(origin, numsToCoord(newX, newY));
+                if (checkMove(origin, numsToCoord(newX, newY)) != 0) break;
 
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
+                moveTower(origin, numsToCoord(newX, newY));
 
-            undoMoveTower(origin, numsToCoord(newX, newY));
-        }
+                coordToCode(strTarget, numsToCoord(newX, newY));
+                printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-        for (int i = 1; i < 8; i++) {
-            newX = origin.xCoord + i;
-            newY = origin.yCoord - i;
+                rating = 1; // später feingranularer berechnen
+                if (rating > bestMove.rating) {
+                    bestMove.origin = origin;
+                    bestMove.target = numsToCoord(newX, newY);
+                    bestMove.rating = rating;
+                }
 
-            if (checkMove(origin, numsToCoord(newX, newY)) != 0) break;
+                undoMoveTower(origin, numsToCoord(newX, newY));
+            }
 
-            moveTower(origin, numsToCoord(newX, newY));
-
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
-
-            undoMoveTower(origin, numsToCoord(newX, newY));
-        }
-
-        for (int i = 1; i < 8; i++) {
-            newX = origin.xCoord - i;
-            newY = origin.yCoord + i;
-
-            if (checkMove(origin, numsToCoord(newX, newY)) != 0) break;
-
-            moveTower(origin, numsToCoord(newX, newY));
-
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
-
-            undoMoveTower(origin, numsToCoord(newX, newY));
-        }
-
-        for (int i = 1; i < 8; i++) {
-            newX = origin.xCoord - i;
-            newY = origin.yCoord - i;
-
-            if (checkMove(origin, numsToCoord(newX, newY)) != 0) break;
-
-            moveTower(origin, numsToCoord(newX, newY));
-
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
-
-            undoMoveTower(origin, numsToCoord(newX, newY));
         }
     }
 
-
+    return bestMove;
 }
 
 /* Macht eine moveTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Sollte nicht eigenständig
@@ -483,11 +476,14 @@ void undoCaptureTower(coordinate origin, coordinate target) {
     board[8*target.yCoord+target.xCoord] = NULL;
 }
 
-void tryAllCaptures(coordinate origin) {
+move tryAllCaptures(coordinate origin) {
     char strOrigin[3];
     char strTarget[3];
     int newX, newY;
     coordToCode(strOrigin, origin);
+
+    move bestMove = createMoveStruct();
+    int rating;
 
     // normaler Turm
     if (getTopPiece(origin) == 'w' || getTopPiece(origin) == 'b') {
@@ -495,66 +491,63 @@ void tryAllCaptures(coordinate origin) {
         if (getTopPiece(origin) == 'w') newY = origin.yCoord + 2;
         else newY = origin.yCoord - 2;
 
-        // TODO Die beiden Schleifen kann man bestimmt zusammenfassen
-        newX = origin.xCoord + 2;
-        if (checkCapture(origin, numsToCoord(newX, newY)) == 0) {
-            captureTower(origin, numsToCoord(newX, newY));
+        for (int round = 0; round < 2; round++) {
+            switch (round) {
+                case 0:
+                    newX = origin.xCoord + 2;
+                    break;
+                case 1:
+                    newX = origin.xCoord - 2;
+                    break;
+            }
 
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+            if (checkCapture(origin, numsToCoord(newX, newY)) == 0) {
+                captureTower(origin, numsToCoord(newX, newY));
 
-            undoCaptureTower(origin, numsToCoord(newX, newY));
-        }
+                coordToCode(strTarget, numsToCoord(newX, newY));
+                printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-        newX = origin.xCoord - 2;
-        if (checkCapture(origin, numsToCoord(newX, newY)) == 0) {
-            captureTower(origin, numsToCoord(newX, newY));
+                rating = 1; // später feingranularer berechnen
+                if (rating > bestMove.rating) {
+                    bestMove.origin = origin;
+                    bestMove.target = numsToCoord(newX, newY);
+                    bestMove.rating = rating;
+                }
 
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
-
-            undoCaptureTower(origin, numsToCoord(newX, newY));
+                undoCaptureTower(origin, numsToCoord(newX, newY));
+            }
         }
 
     }
 
     // Turm mit Dame oben
     if (getTopPiece(origin) == 'W' || getTopPiece(origin) == 'B') {
+        int xDirection;
+        int yDirection;
 
-        // TODO Schleifen zusammenfassen
-        for (int i = 2; i < 8; i++) {
-            newX = origin.xCoord + i;
-            newY = origin.yCoord + i;
+        for (int round = 0; round < 4; round++) { // 4, weil vorne links, vorne rechts, hinten links, hinten rechts
+            switch (round) {
+                case 0:
+                    xDirection = 1;
+                    yDirection = 1;
+                    break;
+                case 1:
+                    xDirection = 1;
+                    yDirection = -1;
+                    break;
+                case 2:
+                    xDirection = -1;
+                    yDirection = 1;
+                    break;
+                case 3:
+                    xDirection = -1;
+                    yDirection = -1;
+                    break;
+            }
 
-            if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
-
-            captureTower(origin, numsToCoord(newX, newY));
-
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
-
-            undoCaptureTower(origin, numsToCoord(newX, newY));
-            break;
-        }
-
-        for (int i = 2; i < 8; i++) {
-            newX = origin.xCoord + i;
-            newY = origin.yCoord - i;
-
-            if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
-
-            captureTower(origin, numsToCoord(newX, newY));
-
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
-
-            undoCaptureTower(origin, numsToCoord(newX, newY));
-            break;
-        }
-
-        for (int i = 2; i < 8; i++) {
-            newX = origin.xCoord - i;
-            newY = origin.yCoord + i;
+            for (int i = 2; i < 8; i++) {
+            newX = origin.xCoord + i * xDirection;
+            newY = origin.yCoord + i * yDirection;
 
             if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
 
@@ -563,25 +556,20 @@ void tryAllCaptures(coordinate origin) {
             coordToCode(strTarget, numsToCoord(newX, newY));
             printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-            undoCaptureTower(origin, numsToCoord(newX, newY));
-            break;
-        }
-
-        for (int i = 2; i < 8; i++) {
-            newX = origin.xCoord - i;
-            newY = origin.yCoord - i;
-
-            if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
-
-            captureTower(origin, numsToCoord(newX, newY));
-
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+            rating = 1; // später feingranularer berechnen
+            if (rating > bestMove.rating) {
+                bestMove.origin = origin;
+                bestMove.target = numsToCoord(newX, newY);
+                bestMove.rating = rating;
+            }
 
             undoCaptureTower(origin, numsToCoord(newX, newY));
             break;
+            }
         }
     }
+
+    return bestMove;
 }
 
 /* Nimmt als Parameter einen String (sollte 33 Chars aufnehmen können), ein Spielbrett und eine Koordinate.
@@ -754,6 +742,15 @@ void coordToCode(char *target, coordinate c) {
     ret[2] = '\0';
 
     strncpy(target, ret, 3);
+}
+
+// erzeugt ein neues struct gameInfo und initialisiert es mit Standardwerten
+move createMoveStruct(void) {
+    move ret;
+    ret.origin = numsToCoord(-1, -1);
+    ret.target = numsToCoord(-1, -1);
+    ret.rating = INT_MIN;
+    return ret;
 }
 
 int minInt(int a, int b) {

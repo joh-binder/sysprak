@@ -1,6 +1,8 @@
 #ifndef SYSPRAK_THINKERFUNCTIONS_H
 #define SYSPRAK_THINKERFUNCTIONS_H
 
+#include <limits.h>
+
 typedef struct coord {
     int xCoord;
     int yCoord;
@@ -10,6 +12,12 @@ typedef struct tow {
     char piece;
     struct tow *next;
 } tower;
+
+typedef struct moveInfo {
+    coordinate origin;
+    coordinate target;
+    int rating;
+} move;
 
 /* In der Main-Methode sollte ein Spielbrett (tower*) gemalloced werden. Der entstehende Pointer muss einmalig mit
  * dieser Funktion an dieses Modul übergeben werden, damit die statische Variable tower **board gesetzt werden kann,
@@ -65,7 +73,7 @@ void undoMoveTower(coordinate origin, coordinate target);
 
 /* Gegeben eine Koordinate, an der ein Turm steht. Testet, an welche Felder der Turm verschoben werden kann.
  * (Im Moment nur als Kommandozeilenausgabe) */
-void tryAllMoves(coordinate origin);
+move tryAllMoves(coordinate origin);
 
 /* Gegeben eine Ursprungs- und eine Zielkoordinate, überprüft ob es erlaubt wäre, mit dem Turm so zu schlagen.
  * [Beachte: Target ist nicht das Feld des Turms, der geschlagen wird, sondern das Feld dahinter, auf dem der
@@ -82,7 +90,7 @@ void captureTower(coordinate origin, coordinate target);
  * Funktion nicht eigenständig aufgerufen wird, sondern nur in Folge einer gültigen captureTower-Operation. */
 void undoCaptureTower(coordinate origin, coordinate target);
 
-void tryAllCaptures(coordinate origin);
+move tryAllCaptures(coordinate origin);
 
 /* Nimmt als Parameter einen String (sollte 33 Chars aufnehmen können), ein Spielbrett und eine Koordinate.
  * Repräsentiert alle Spielsteine, aus denen der Turm an der angegebenen Kooordinate besteht, als Folge von
@@ -101,6 +109,9 @@ coordinate numsToCoord(int x, int y);
 /* Nimmt als Parameter einen String (sollte 3) und eine coordinate. Wandelt die Koordinate um in die
  * Buchstabe-Zahl-Repräsentation (z.B. x = 4, y = 2 --> B3) und schreibt das Ergebnis in den String */
 void coordToCode (char* target, coordinate c);
+
+// erzeugt ein neues struct moveInfo und initialisiert es mit Standardwerten
+move createMoveStruct(void);
 
 int minInt(int a, int b);
 
