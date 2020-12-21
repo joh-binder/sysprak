@@ -5,7 +5,7 @@
 #include "thinkerfunctions.h"
 
 #define MAX_LENGTH_NAMES 256
-#define MAX_NUMBER_OF_PLAYERS_IN_SHMEM 10
+#define MAX_NUMBER_OF_PLAYERS_IN_SHMEM 12
 #define KEY_FOR_MOVE_SHMEM 1234567
 #define MOVE_LINE_BUFFER 10
 
@@ -44,6 +44,10 @@ struct line createLineStruct(char *content);
  * der Pointer darauf einmal mit dieser Funktion an diese Methode übergeben werden, damit hier die statische Variable
  * entsprechend gesetzt werden kann, welche dann andere Funktionen benutzen. */
 void setUpPlayerAlloc(struct playerInfo *pStart);
+
+/* Überprüft, ob der Speicherplatz, der im Voraus für struct PlayerInfos reserviert wurde, überhaupt groß genug ist
+ * für die Spieleranzahl, die der Server mitteilt. Falls ja, 0, falls nein, -1. */
+int checkPlayerShmallocSize(int size);
 
 /* Setzt voraus, dass ein Speicherblock für struct playerInfos reserviert ist. Gibt einen Pointer auf einen Abschnitt
  * des Speicherblocks zurück, der genau groß genug für eine struct playerInfo ist. Intern wird ein Zähler

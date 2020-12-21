@@ -221,6 +221,12 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
     pGame->numberOfPlayers = totalplayer;
     pGame->ownPlayerNumber = ownPlayerNumber;
 
+    if (checkPlayerShmallocSize(totalplayer) != 0) {
+        fprintf(stderr, "Fehler! Es wird zu wenig Shared-Memory-Platz für %d Spieler bereitgestellt.\n", totalplayer);
+        close(sock);
+        exit(EXIT_FAILURE);
+    }
+
     // eigene Spielerinfos abspeichern
     struct playerInfo *pFirstPlayer = playerShmalloc();
     if (pFirstPlayer == (struct playerInfo *)NULL) {
@@ -315,6 +321,8 @@ struct line *moveBehaviorFirstRound(int sock, struct gameInfo *pGame) {
     }
 
     pGame->sizeMoveShmem = counter; // Anzahl der Spielsteininfos im Shmemory aktualisieren
+
+
 
     // erzeugt einen Shared-Memory-Bereich in passender Größe für alle Spielsteine (als struct line)
     int shmidMoveInfo = createShmemoryForMoves(counter);

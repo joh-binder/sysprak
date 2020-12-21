@@ -109,11 +109,11 @@ int main(int argc, char *argv[]) {
     struct cnfgInfo configInfo;
     if (readFromConfFile(&configInfo, confFilePath) == -1) return EXIT_FAILURE;
 
-    // für mich zur Kontrolle, gehört später weg
-    printf("Ich habe die Funktion readFromConfFile aufgerufen und die Werte, die in configInfo stehen, sind jetzt:\n");
-    printf("gameKindName: %s\n", configInfo.gameKindName);
-    printf("hostName: %s\n", configInfo.hostName);
-    printf("portNumber: %d\n", configInfo.portNumber);
+//    // für mich zur Kontrolle, gehört später weg
+//    printf("Ich habe die Funktion readFromConfFile aufgerufen und die Werte, die in configInfo stehen, sind jetzt:\n");
+//    printf("gameKindName: %s\n", configInfo.gameKindName);
+//    printf("hostName: %s\n", configInfo.hostName);
+//    printf("portNumber: %d\n", configInfo.portNumber);
 
     // erzeugt ein struct GameInfo in einem dafür angelegten Shared-Memory-Bereich
     shmidGeneralInfo = shmCreate(sizeof(struct gameInfo));

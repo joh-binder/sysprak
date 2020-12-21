@@ -49,6 +49,13 @@ void setUpPlayerAlloc(struct playerInfo *pStart) {
     pointerToStart = pStart;
 }
 
+/* Überprüft, ob der Speicherplatz, der im Voraus für struct PlayerInfos reserviert wurde, überhaupt groß genug ist
+ * für die Spieleranzahl, die der Server mitteilt. Falls ja, 0, falls nein, -1. */
+int checkPlayerShmallocSize(int size) {
+    if (size > MAX_NUMBER_OF_PLAYERS_IN_SHMEM) return -1;
+    else return 0;
+}
+
 /* Setzt voraus, dass ein Speicherblock für struct playerInfos reserviert ist. Gibt einen Pointer auf einen Abschnitt
  * des Speicherblocks zurück, der genau groß genug für eine struct playerInfo ist. Intern wird ein Zähler
  * versetzt, sodass der nächste Funktionsaufruf einen anderen Abschnitt liefert. */
