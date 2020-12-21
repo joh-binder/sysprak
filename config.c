@@ -42,11 +42,12 @@ int readFromConfFile(struct cnfgInfo *pConfigInfo, char *path) {
         // in den Zeilen steht i.d.R. "varName = varValue" -> legt dafür zwei getrennte Variablen an
         char varName[CONFIG_BUFFER_SIZE], varValue[CONFIG_BUFFER_SIZE];
 
-        // scannt die eingelesene Zeile, speichert den Teil vor und hinter dem = getrennt in varName und varValue
-        if(sscanf(lineAsPointer, "%[^ \t] = %[^ \t\n]", varName, varValue) != 2) {
-            fprintf(stderr, "Fehler beim Einlesen der Werte aus der Konfigurationsdatei in Zeile %d.\n", countLine);
-            continue;
-        }
+        // scannt bis Leerzeichen oder = nach varName, der Rest landet wieder in lineAsPointer
+        sscanf(lineAsPointer, "%[^ \t=]%[^\n]", varName, lineAsPointer);
+        while (*lineAsPointer == ' ' || *lineAsPointer == '\t') lineAsPointer++; // evtl. Leerzeichen vor = überspringen
+        lineAsPointer++; // = überspringen
+        while (*lineAsPointer == ' ' || *lineAsPointer == '\t') lineAsPointer++; // evtl. Leerzeichen nach = überspringen
+        strncpy(varValue, lineAsPointer, CONFIG_BUFFER_SIZE-1); // der Rest kann jetzt in varValue
 
         // je nachdem, was varName ist, soll varValue an eine unterschiedliche Stelle im Struct geschrieben werden
         if (strcmp(varName, "hostName") == 0) {
