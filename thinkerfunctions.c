@@ -11,7 +11,25 @@ static unsigned int sizeOfTowerMalloc;
 static tower *pointerToStart;
 static tower **board;
 
+static char ownNormalTower, ownQueenTower, opponentNormalTower, opponentQueenTower;
+
 static bool justConvertedToQueen = false;
+
+int minInt(int a, int b) {
+    if (b < a) return b;
+    else return a;
+}
+
+int getSign(int a) {
+    if (a == 0) return 0;
+    else if (a > 0) return 1;
+    else return -1;
+}
+
+int abs(int a) {
+    if (a >= 0) return a;
+    else return -a;
+}
 
 /* In der Main-Methode sollte ein Speicher für ein Spielbrett (64 Pointer auf tower) gemalloced werden. Der entstehende
  * Pointer muss einmalig mit dieser Funktion an dieses Modul übergeben werden, damit die statische Variable tower **board
@@ -26,6 +44,27 @@ void setUpBoard(tower **pBoard) {
 void setUpTowerAlloc(tower *pStart, unsigned int numTowers) {
     sizeOfTowerMalloc = numTowers * sizeof(tower);
     pointerToStart = pStart;
+}
+
+/* Hiermit muss die Spielernummer an thinkerfunctions übergeben werden, damit hier bekannt ist, was die eigene Farbe
+ * und was die des Gegners ist. */
+int setUpWhoIsWho(int playerno) {
+    if (playerno == 0) {
+        ownNormalTower = 'w';
+        ownQueenTower = 'W';
+        opponentNormalTower = 'b';
+        opponentQueenTower = 'B';
+        return 0;
+    } else if (playerno == 1) {
+        ownNormalTower = 'b';
+        ownQueenTower = 'B';
+        opponentNormalTower = 'w';
+        opponentQueenTower = 'W';
+        return 0;
+    } else {
+        fprintf(stderr, "Fehler! Eigene Spielernummer ist weder 0 noch 1.\n");
+        return -1;
+    }
 }
 
 /* Setzt voraus, dass ein Speicherblock für Türme reserviert ist. Gibt einen Pointer auf einen Abschnitt des
@@ -228,7 +267,7 @@ move tryAllMoves(coordinate origin) {
     coordToCode(strOrigin, origin);
 
     move bestMove = createMoveStruct();
-    int rating;
+    float rating;
 
     // normaler Turm
     if (getTopPiece(origin) == 'w' || getTopPiece(origin) == 'b') {
@@ -247,18 +286,18 @@ move tryAllMoves(coordinate origin) {
             }
 
             if (checkMove(origin, numsToCoord(newX, newY)) == 0) {
-                moveTower(origin, numsToCoord(newX, newY));
 
                 coordToCode(strTarget, numsToCoord(newX, newY));
                 printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-                rating = 1; // später feingranularer berechnen
+                rating = 1.0; // später feingranularer berechnen
                 if (rating > bestMove.rating) {
                     bestMove.origin = origin;
                     bestMove.target = numsToCoord(newX, newY);
                     bestMove.rating = rating;
                 }
 
+                moveTower(origin, numsToCoord(newX, newY));
                 undoMoveTower(origin, numsToCoord(newX, newY));
             }
         }
@@ -295,18 +334,17 @@ move tryAllMoves(coordinate origin) {
 
                 if (checkMove(origin, numsToCoord(newX, newY)) != 0) break;
 
-                moveTower(origin, numsToCoord(newX, newY));
-
                 coordToCode(strTarget, numsToCoord(newX, newY));
                 printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-                rating = 1; // später feingranularer berechnen
+                rating = 1.0; // später feingranularer berechnen
                 if (rating > bestMove.rating) {
                     bestMove.origin = origin;
                     bestMove.target = numsToCoord(newX, newY);
                     bestMove.rating = rating;
                 }
 
+                moveTower(origin, numsToCoord(newX, newY));
                 undoMoveTower(origin, numsToCoord(newX, newY));
             }
 
@@ -476,44 +514,55 @@ void undoCaptureTower(coordinate origin, coordinate target) {
     board[8*target.yCoord+target.xCoord] = NULL;
 }
 
-move tryAllCaptures(coordinate origin) {
+/* Gegeben eine Koordinate, an der ein Turm steht, und eine zweite "blockierte" Koordinate. Testet alle Schläge
+ * die der Turm an der ersten Koordinate ausführen könnte – außer solche, die zum blockierten Feld/darüber hinaus
+ * führen würden. Gibt den besten möglichen Zug zurück. Wenn keine Schläge möglich sind: Gibt Standard-move mit
+ * origin- und target-Koordinaten -1 und rating FLT_MIN zurück. */
+move tryAllCapturesExcept(coordinate origin, coordinate blocked) {
     char strOrigin[3];
     char strTarget[3];
     int newX, newY;
     coordToCode(strOrigin, origin);
 
     move bestMove = createMoveStruct();
-    int rating;
+    float rating;
 
     // normaler Turm
     if (getTopPiece(origin) == 'w' || getTopPiece(origin) == 'b') {
 
-        if (getTopPiece(origin) == 'w') newY = origin.yCoord + 2;
-        else newY = origin.yCoord - 2;
-
-        for (int round = 0; round < 2; round++) {
+        for (int round = 0; round < 4; round++) { // 4, weil vier Richtungen, in die geschlagen werden könnte
             switch (round) {
                 case 0:
                     newX = origin.xCoord + 2;
+                    newY = origin.yCoord + 2;
                     break;
                 case 1:
+                    newX = origin.xCoord + 2;
+                    newY = origin.yCoord - 2;
+                    break;
+                case 2:
                     newX = origin.xCoord - 2;
+                    newY = origin.yCoord + 2;
+                    break;
+                case 3:
+                    newX = origin.xCoord - 2;
+                    newY = origin.yCoord - 2;
                     break;
             }
 
+            if (newX == blocked.xCoord && newY == blocked.yCoord) continue;
             if (checkCapture(origin, numsToCoord(newX, newY)) == 0) {
-                captureTower(origin, numsToCoord(newX, newY));
-
                 coordToCode(strTarget, numsToCoord(newX, newY));
                 printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-                rating = 1; // später feingranularer berechnen
+                rating = 1.0; // später feingranularer berechnen
                 if (rating > bestMove.rating) {
                     bestMove.origin = origin;
                     bestMove.target = numsToCoord(newX, newY);
                     bestMove.rating = rating;
                 }
 
+                captureTower(origin, numsToCoord(newX, newY));
                 undoCaptureTower(origin, numsToCoord(newX, newY));
             }
         }
@@ -546,30 +595,50 @@ move tryAllCaptures(coordinate origin) {
             }
 
             for (int i = 2; i < 8; i++) {
-            newX = origin.xCoord + i * xDirection;
-            newY = origin.yCoord + i * yDirection;
+                newX = origin.xCoord + i * xDirection;
+                newY = origin.yCoord + i * yDirection;
 
-            if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
+                if (newX == blocked.xCoord && newY == blocked.yCoord) break;
+                if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
 
-            captureTower(origin, numsToCoord(newX, newY));
+                coordToCode(strTarget, numsToCoord(newX, newY));
+                printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-            coordToCode(strTarget, numsToCoord(newX, newY));
-            printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+                rating = 1.0; // später feingranularer berechnen
+                if (rating > bestMove.rating) {
+                    bestMove.origin = origin;
+                    bestMove.target = numsToCoord(newX, newY);
+                    bestMove.rating = rating;
+                }
 
-            rating = 1; // später feingranularer berechnen
-            if (rating > bestMove.rating) {
-                bestMove.origin = origin;
-                bestMove.target = numsToCoord(newX, newY);
-                bestMove.rating = rating;
-            }
-
-            undoCaptureTower(origin, numsToCoord(newX, newY));
-            break;
+                captureTower(origin, numsToCoord(newX, newY));
+                undoCaptureTower(origin, numsToCoord(newX, newY));
+                break;
             }
         }
     }
 
     return bestMove;
+}
+
+/* Gegeben eine Koordinate, an der ein Turm steht. Testet alle Schläge, die der Turm an der ersten Koordinate ausführen
+ * könnte, und gibt den besten davon zurück. [Spezialfall von tryAllCapturesExcept, Except wird nicht genutzt]*/
+move tryAllCaptures(coordinate origin) {
+    return tryAllCapturesExcept(origin, numsToCoord(-1, -1));
+}
+
+/* Wendet tryAllCapturesExcept an. Wenn kein gültiger Spielzug existiert, werden in move origin und target beide auf
+ * die Ursprungskoordinate gesetzt. */
+move tryCaptureAgain(coordinate nowBlocked, coordinate newOrigin) {
+    move ret = tryAllCapturesExcept(newOrigin, nowBlocked);
+
+    // wenn tryAllCaptures keinen gültigen Zug finden kann: kein Zug mehr, kodiert indem origin = target
+    if (ret.origin.xCoord == -1 || ret.origin.yCoord == -1 || ret.target.xCoord == -1 || ret.target.yCoord == -1) {
+        ret.origin = newOrigin;
+        ret.target = newOrigin;
+    }
+
+    return ret;
 }
 
 /* Nimmt als Parameter einen String (sollte 33 Chars aufnehmen können), ein Spielbrett und eine Koordinate.
@@ -749,27 +818,82 @@ move createMoveStruct(void) {
     move ret;
     ret.origin = numsToCoord(-1, -1);
     ret.target = numsToCoord(-1, -1);
-    ret.rating = INT_MIN;
+    ret.rating = FLT_MIN;
     return ret;
 }
 
-int minInt(int a, int b) {
-    if (b < a) return b;
-    else return a;
-}
+/* Bestimmt den günstigen Spielzug auf Basis des aktuellen Spielbretts. Schreibt diesen in den angegebenen String. */
+void think(char *answer) {
+    move overallBestMove = createMoveStruct();
+    move thisMove = createMoveStruct();
+    int answerCounter = 0;
 
-int maxInt(int a, int b) {
-    if (b > a) return b;
-    else return a;
-}
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
+                continue;
+            }
+            thisMove = tryAllCaptures(numsToCoord(i,j));
+            if (thisMove.rating > overallBestMove.rating) {
+                overallBestMove.origin = thisMove.origin;
+                overallBestMove.target = thisMove.target;
+                overallBestMove.rating = thisMove.rating;
+            }
+        }
+    }
 
-int getSign(int a) {
-    if (a == 0) return 0;
-    else if (a > 0) return 1;
-    else return -1;
-}
+    if (overallBestMove.origin.xCoord != -1 && overallBestMove.origin.yCoord != -1 && overallBestMove.target.xCoord != -1 && overallBestMove.target.yCoord != -1) {
+        coordToCode(answer, overallBestMove.origin);
+        answerCounter += 2;
+        answer[answerCounter] = ':';
+        answerCounter += 1;
+        coordToCode(answer + answerCounter, overallBestMove.target);
+        answerCounter += 2;
 
-int abs(int a) {
-    if (a >= 0) return a;
-    else return -a;
+        bool moreCapturesLoop = true;
+
+        while (moreCapturesLoop) {
+            // führe den besten Zug tatsächlich aus
+            captureTower(overallBestMove.origin, overallBestMove.target);
+
+            overallBestMove = tryCaptureAgain(overallBestMove.origin, overallBestMove.target);
+
+            char temp[3];
+            coordToCode(temp, overallBestMove.target);
+
+            if (overallBestMove.origin.xCoord == overallBestMove.target.xCoord && overallBestMove.origin.yCoord == overallBestMove.target.yCoord) {
+                // kein weiteres Schlagen mehr möglich
+                moreCapturesLoop = false;
+            } else {
+                // weiterer Schlagzug gefunden -> in answer schreiben
+                answer[answerCounter] = ':';
+                answerCounter += 1;
+                coordToCode(answer + answerCounter, overallBestMove.target);
+                answerCounter += 2;
+            }
+
+        }
+    } else {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
+                    continue;
+                }
+                thisMove = tryAllMoves(numsToCoord(i,j));
+                if (thisMove.rating > overallBestMove.rating) {
+                    overallBestMove.origin = thisMove.origin;
+                    overallBestMove.target = thisMove.target;
+                    overallBestMove.rating = thisMove.rating;
+                }
+            }
+        }
+
+        coordToCode(answer, overallBestMove.origin);
+        answerCounter += 2;
+        answer[answerCounter] = ':';
+        answerCounter += 1;
+        coordToCode(answer + answerCounter, overallBestMove.target);
+        answerCounter += 2;
+    }
+
 }

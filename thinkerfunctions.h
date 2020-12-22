@@ -1,7 +1,7 @@
 #ifndef SYSPRAK_THINKERFUNCTIONS_H
 #define SYSPRAK_THINKERFUNCTIONS_H
 
-#include <limits.h>
+#include <float.h>
 
 typedef struct coord {
     int xCoord;
@@ -16,7 +16,7 @@ typedef struct tow {
 typedef struct moveInfo {
     coordinate origin;
     coordinate target;
-    int rating;
+    float rating;
 } move;
 
 /* In der Main-Methode sollte ein Spielbrett (tower*) gemalloced werden. Der entstehende Pointer muss einmalig mit
@@ -28,6 +28,8 @@ void setUpBoard(tower **pBoard);
  * sowie die Anzahl der Türme, die in den Speicher passen, müssen einmalig mit dieser Funktion an dieses Modul
  * übergeben werden, damit statische Variablen gesetzt werden können, die dann andere Funktionen benutzen wollen. */
 void setUpTowerAlloc(tower *pStart, unsigned int numTowers);
+
+int setUpWhoIsWho(int playerno);
 
 /* Setzt voraus, dass ein Speicherblock für Türme reserviert ist. Gibt einen Pointer auf einen Abschnitt des
  * Speicherblocks zurück, der genau groß genug für einen tower ist. Intern wird ein Zähler
@@ -90,7 +92,11 @@ void captureTower(coordinate origin, coordinate target);
  * Funktion nicht eigenständig aufgerufen wird, sondern nur in Folge einer gültigen captureTower-Operation. */
 void undoCaptureTower(coordinate origin, coordinate target);
 
+/* Gegeben eine Koordinate, an der ein Turm steht. Testet alle Schläge, die der Turm an der ersten Koordinate ausführen
+ * könnte, und gibt den besten davon zurück. */
 move tryAllCaptures(coordinate origin);
+
+move tryCaptureAgain(coordinate nowBlocked, coordinate newOrigin);
 
 /* Nimmt als Parameter einen String (sollte 33 Chars aufnehmen können), ein Spielbrett und eine Koordinate.
  * Repräsentiert alle Spielsteine, aus denen der Turm an der angegebenen Kooordinate besteht, als Folge von
@@ -113,12 +119,7 @@ void coordToCode (char* target, coordinate c);
 // erzeugt ein neues struct moveInfo und initialisiert es mit Standardwerten
 move createMoveStruct(void);
 
-int minInt(int a, int b);
-
-int maxInt(int a, int b);
-
-int getSign(int a);
-
-int abs(int a);
+/* Bestimmt den günstigen Spielzug auf Basis des aktuellen Spielbretts. Schreibt diesen in den angegebenen String. */
+void think(char *answer);
 
 #endif //SYSPRAK_THINKERFUNCTIONS_H

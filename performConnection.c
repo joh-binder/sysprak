@@ -323,7 +323,6 @@ struct line *moveBehaviorFirstRound(int sock, struct gameInfo *pGame) {
     pGame->sizeMoveShmem = counter; // Anzahl der Spielsteininfos im Shmemory aktualisieren
 
 
-
     // erzeugt einen Shared-Memory-Bereich in passender Größe für alle Spielsteine (als struct line)
     int shmidMoveInfo = createShmemoryForMoves(counter);
     struct line *ret = shmAttach(shmidMoveInfo);

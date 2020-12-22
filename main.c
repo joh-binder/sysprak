@@ -17,6 +17,7 @@
 
 #define IP_BUFFER 256 // für Array mit IP-Adresse
 #define PIPE_BUFFER 256
+#define MOVE_BUFFER 256
 #define GAME_ID_LENGTH 13
 
 static int shmidGeneralInfo;
@@ -181,8 +182,6 @@ int main(int argc, char *argv[]) {
         pBoard = malloc(sizeof(tower *) * 64);
         setUpBoard(pBoard);
 
-        char ownNormalTower, ownQueenTower;
-
         wait(NULL);
 
         // Shared-Memory für die Spielzüge aufrufen
@@ -193,26 +192,19 @@ int main(int argc, char *argv[]) {
         pTowers = malloc(sizeof(tower) * pGeneralInfo->sizeMoveShmem);
         setUpTowerAlloc(pTowers, pGeneralInfo->sizeMoveShmem);
 
-        if (pGeneralInfo->ownPlayerNumber == 0) {
-            ownNormalTower = 'w';
-            ownQueenTower = 'W';
-        } else if (pGeneralInfo->ownPlayerNumber == 1) {
-            ownNormalTower = 'b';
-            ownQueenTower = 'B';
-        } else {
-            fprintf(stderr, "Fehler! Eigene Spielernummer ist weder 0 noch 1.\n");
+        // thinkerfunctions.c muss wissen, ob wir Spieler 0 oder 1 sind
+        if (setUpWhoIsWho(pGeneralInfo->ownPlayerNumber) != 0) {
             cleanupMain();
             return EXIT_FAILURE;
         }
 
-        move overallBestMove, thisMove;
+        char moveString[MOVE_BUFFER];
 
         // ab hier: jede Runde wiederholen
 
         resetTallocCounter();
         resetBoard();
-        overallBestMove = createMoveStruct();
-        thisMove = createMoveStruct();
+        memset(moveString, 0, strlen(moveString));
 
         for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
             if (addToSquare(codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0]) != 0) {
@@ -227,54 +219,18 @@ int main(int argc, char *argv[]) {
 //        addToSquare(codeToCoord("E5"), 'b');
 //        addToSquare(codeToCoord("E7"), 'b');
 //        addToSquare(codeToCoord("D6"), 'w');
-
+//        addToSquare(codeToCoord("F2"), 'B');
+//
 //        addToSquare(codeToCoord("D4"), 'W');
-//        addToSquare(codeToCoord("G7"), 'b');
 //        addToSquare(codeToCoord("E3"), 'b');
-//        addToSquare(codeToCoord("F2"), 'b');
-//        addToSquare(codeToCoord("A1"), 'b');
-//        addToSquare(codeToCoord("B6"), 'b');
+//        addToSquare(codeToCoord("G3"), 'b');
+//        addToSquare(codeToCoord("G5"), 'b');
 
         printFull();
 
+        think(moveString);
+        printf("Der beste Zug ist: %s\n", moveString);
 
-        for (int i = 0; i < 8; i++) {
-            for (int j = 0; j < 8; j++) {
-                if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
-                    continue;
-                }
-                thisMove = tryAllCaptures(numsToCoord(i,j));
-                if (thisMove.rating > overallBestMove.rating) {
-                    overallBestMove.origin = thisMove.origin;
-                    overallBestMove.target = thisMove.target;
-                    overallBestMove.rating = thisMove.rating;
-                }
-            }
-        }
-
-        if (overallBestMove.origin.xCoord != -1 && overallBestMove.origin.yCoord != -1 && overallBestMove.target.xCoord != -1 && overallBestMove.target.yCoord != -1) {
-            // Schleife, muss erneut capture sofern möglich
-        } else {
-            for (int i = 0; i < 8; i++) {
-                for (int j = 0; j < 8; j++) {
-                    if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
-                        continue;
-                    }
-                    thisMove = tryAllMoves(numsToCoord(i,j));
-                    if (thisMove.rating > overallBestMove.rating) {
-                        overallBestMove.origin = thisMove.origin;
-                        overallBestMove.target = thisMove.target;
-                        overallBestMove.rating = thisMove.rating;
-                    }
-                }
-            }
-        }
-
-        char tempOrigin[3];
-        char tempTarget[3];
-        coordToCode(tempOrigin, overallBestMove.origin);
-        coordToCode(tempTarget, overallBestMove.target);
-        printf("Der beste Zug ist: Von %s nach %s.\n", tempOrigin, tempTarget);
 
 
         // Aufräumarbeiten
