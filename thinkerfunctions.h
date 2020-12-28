@@ -3,6 +3,8 @@
 
 #include <float.h>
 
+/* TODO Kapseln: Viele dieser Funktionen müssen nicht wirklich in main.c sichtbar sein. */
+
 typedef struct coord {
     int xCoord;
     int yCoord;
@@ -73,6 +75,10 @@ void moveTower(coordinate origin, coordinate target);
  * aufgerufen werden, sondern nur in Folge einer gültigen moveTower-Operation. */
 void undoMoveTower(coordinate origin, coordinate target);
 
+/* Nimmt die Ursprungs- und Zielkoordinaten einer (gültigen) Turmbewegung entgegen und gibt ein Rating zurück, wie gut
+ * dieser Zug ist. Im Moment ist jedes Rating einfach 1. */
+float evaluateMove(coordinate origin, coordinate target);
+
 /* Gegeben eine Koordinate, an der ein Turm steht. Testet, an welche Felder der Turm verschoben werden kann.
  * (Im Moment nur als Kommandozeilenausgabe) */
 move tryAllMoves(coordinate origin);
@@ -91,6 +97,10 @@ void captureTower(coordinate origin, coordinate target);
 /* Macht eine captureTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Es wird angenommen, dass die
  * Funktion nicht eigenständig aufgerufen wird, sondern nur in Folge einer gültigen captureTower-Operation. */
 void undoCaptureTower(coordinate origin, coordinate target);
+
+/* Nimmt die Ursprungs- und Zielkoordinaten eines (gültigen!) Schlagzugs entgegen und gibt ein Rating zurück,
+ * wie gut dieser Zug ist. Im Moment ist jedes Rating einfach 1. */
+float evaluateCapture(coordinate origin, coordinate target);
 
 /* Gegeben eine Koordinate, an der ein Turm steht. Testet alle Schläge, die der Turm an der ersten Koordinate ausführen
  * könnte, und gibt den besten davon zurück. */

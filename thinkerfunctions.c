@@ -257,6 +257,33 @@ void moveTower(coordinate origin, coordinate target) {
     }
 }
 
+/* Macht eine moveTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Sollte nicht eigenständig
+ * aufgerufen werden, sondern nur in Folge einer gültigen moveTower-Operation. */
+void undoMoveTower(coordinate origin, coordinate target) {
+    // evtl. Damenumwandlung rückgängig machen
+    if (getTopPiece(target) == 'W' && justConvertedToQueen) {
+        getPointerToSquare(target)->piece = 'w';
+        justConvertedToQueen = false;
+    } else if (getTopPiece(target) == 'B' && justConvertedToQueen) {
+        getPointerToSquare(target)->piece = 'b';
+        justConvertedToQueen = false;
+    }
+
+    moveTower(target, origin);
+}
+
+/* Nimmt die Ursprungs- und Zielkoordinaten einer (gültigen!) Turmverschiebung entgegen und gibt ein Rating zurück,
+ * wie gut dieser Zug ist. Im Moment ist jedes Rating einfach 1. */
+float evaluateMove(coordinate origin, coordinate target) {
+    float ret = 1.0;
+
+    moveTower(origin, target);
+    // hier könnten Sachen gemeesen werden, um eine genauere Bewertung zu bestimmen
+    undoMoveTower(origin, target);
+
+    return ret;
+}
+
 /* Gegeben eine Koordinate, an der ein Turm steht. Testet, an welche Felder der Turm verschoben werden kann.
  * (Im Moment nur als Kommandozeilenausgabe) */
 move tryAllMoves(coordinate origin) {
@@ -290,15 +317,12 @@ move tryAllMoves(coordinate origin) {
                 coordToCode(strTarget, numsToCoord(newX, newY));
                 printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-                rating = 1.0; // später feingranularer berechnen
+                rating = evaluateMove(origin, numsToCoord(newX, newY));
                 if (rating > bestMove.rating) {
                     bestMove.origin = origin;
                     bestMove.target = numsToCoord(newX, newY);
                     bestMove.rating = rating;
                 }
-
-                moveTower(origin, numsToCoord(newX, newY));
-                undoMoveTower(origin, numsToCoord(newX, newY));
             }
         }
 
@@ -352,21 +376,6 @@ move tryAllMoves(coordinate origin) {
     }
 
     return bestMove;
-}
-
-/* Macht eine moveTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Sollte nicht eigenständig
- * aufgerufen werden, sondern nur in Folge einer gültigen moveTower-Operation. */
-void undoMoveTower(coordinate origin, coordinate target) {
-    // evtl. Damenumwandlung rückgängig machen
-    if (getTopPiece(target) == 'W' && justConvertedToQueen) {
-        getPointerToSquare(target)->piece = 'w';
-        justConvertedToQueen = false;
-    } else if (getTopPiece(target) == 'B' && justConvertedToQueen) {
-        getPointerToSquare(target)->piece = 'b';
-        justConvertedToQueen = false;
-    }
-
-    moveTower(target, origin);
 }
 
 /* Gegeben eine Ursprungs- und eine Zielkoordinate, überprüft ob es erlaubt wäre, mit dem Turm so zu schlagen.
@@ -514,6 +523,18 @@ void undoCaptureTower(coordinate origin, coordinate target) {
     board[8*target.yCoord+target.xCoord] = NULL;
 }
 
+/* Nimmt die Ursprungs- und Zielkoordinaten eines (gültigen!) Schlagzugs entgegen und gibt ein Rating zurück,
+ * wie gut dieser Zug ist. Im Moment ist jedes Rating einfach 1. */
+float evaluateCapture(coordinate origin, coordinate target) {
+    float ret = 1.0;
+
+    captureTower(origin, target);
+    // hier könnten Sachen gemeesen werden, um eine genauere Bewertung zu bestimmen
+    undoCaptureTower(origin, target);
+
+    return ret;
+}
+
 /* Gegeben eine Koordinate, an der ein Turm steht, und eine zweite "blockierte" Koordinate. Testet alle Schläge
  * die der Turm an der ersten Koordinate ausführen könnte – außer solche, die zum blockierten Feld/darüber hinaus
  * führen würden. Gibt den besten möglichen Zug zurück. Wenn keine Schläge möglich sind: Gibt Standard-move mit
@@ -555,15 +576,12 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked) {
                 coordToCode(strTarget, numsToCoord(newX, newY));
                 printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-                rating = 1.0; // später feingranularer berechnen
+                rating = evaluateCapture(origin, numsToCoord(newX, newY));
                 if (rating > bestMove.rating) {
                     bestMove.origin = origin;
                     bestMove.target = numsToCoord(newX, newY);
                     bestMove.rating = rating;
                 }
-
-                captureTower(origin, numsToCoord(newX, newY));
-                undoCaptureTower(origin, numsToCoord(newX, newY));
             }
         }
 

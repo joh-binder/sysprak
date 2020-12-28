@@ -8,7 +8,6 @@
 
 static int playerShmallocCounter = 0;
 static unsigned int sizeOfPlayerShmallocBlock = MAX_NUMBER_OF_PLAYERS_IN_SHMEM * sizeof(struct playerInfo);
-static struct playerInfo *pointerToStart;
 
 static unsigned int sizeOfMoveShmallocBlock;
 
@@ -46,7 +45,7 @@ struct line createLineStruct(char *content) {
  * der Pointer darauf einmal mit dieser Funktion an diese Methode übergeben werden, damit hier die statische Variable
  * entsprechend gesetzt werden kann, welche dann andere Funktionen benutzen. */
 void setUpPlayerAlloc(struct playerInfo *pStart) {
-    pointerToStart = pStart;
+    pStartPlayer = pStart;
 }
 
 /* Überprüft, ob der Speicherplatz, der im Voraus für struct PlayerInfos reserviert wurde, überhaupt groß genug ist
@@ -64,7 +63,7 @@ struct playerInfo *playerShmalloc() {
         fprintf(stderr, "Fehler! Speicherblock ist bereits voll. Kann keinen Speicher mehr zuteilen.\n");
         return (struct playerInfo *)NULL;
     } else {
-        struct playerInfo *pTemp = pointerToStart + playerShmallocCounter;
+        struct playerInfo *pTemp = pStartPlayer + playerShmallocCounter;
         playerShmallocCounter += 1;
         return pTemp;
     }
@@ -73,7 +72,7 @@ struct playerInfo *playerShmalloc() {
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
  * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer */
 struct playerInfo *getPlayerFromNumber(int targetNumber) {
-    struct playerInfo *pCurrentPlayer = pointerToStart;
+    struct playerInfo *pCurrentPlayer = pStartPlayer;
     while (pCurrentPlayer != NULL) {
         if (pCurrentPlayer->playerNumber == targetNumber) {
             return pCurrentPlayer;

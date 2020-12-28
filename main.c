@@ -98,26 +98,14 @@ int main(int argc, char *argv[]) {
     }
     wantedPlayerNumber--; // übergebene Spielernummern sind 1-2, aber der Server will 0-1
 
-//    // für mich zur Kontrolle, gehört später weg
-//    printf("Folgende Werte wurden übergeben:\n");
-//    printf("Game-ID: %s\n", gameID);
-//    printf("Gewünschte Spielernummer: %d\n", wantedPlayerNumber);
-//    printf("Pfad: %s\n", confFilePath);
-
-
     // öffnet confFilePath und schreibt die dortigen Konfigurationswerte in das Struct configInfo
     struct cnfgInfo configInfo;
     if (readFromConfFile(&configInfo, confFilePath) == -1) return EXIT_FAILURE;
 
-//    // für mich zur Kontrolle, gehört später weg
-//    printf("Ich habe die Funktion readFromConfFile aufgerufen und die Werte, die in configInfo stehen, sind jetzt:\n");
-//    printf("gameKindName: %s\n", configInfo.gameKindName);
-//    printf("hostName: %s\n", configInfo.hostName);
-//    printf("portNumber: %d\n", configInfo.portNumber);
-
     // erzeugt ein struct GameInfo in einem dafür angelegten Shared-Memory-Bereich
     shmidGeneralInfo = shmCreate(sizeof(struct gameInfo));
     struct gameInfo *pGeneralInfo = shmAttach(shmidGeneralInfo);
+    setUpGeneralInfo(pGeneralInfo);
 
     // legt einen Shared-Memory-Bereich für die struct playerInfos an
     shmidPlayerInfo = createShmemoryForPlayers();
@@ -213,6 +201,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        // die obige for-Schleife auskommentieren und stattdessen diesen Block einkommentieren, um eine andere Stellung (au0er der Startposition) zu testen
 //        addToSquare(codeToCoord("B4"), 'W');
 //        addToSquare(codeToCoord("D2"), 'b');
 //        addToSquare(codeToCoord("F4"), 'w');
@@ -220,18 +209,11 @@ int main(int argc, char *argv[]) {
 //        addToSquare(codeToCoord("E7"), 'b');
 //        addToSquare(codeToCoord("D6"), 'w');
 //        addToSquare(codeToCoord("F2"), 'B');
-//
-//        addToSquare(codeToCoord("D4"), 'W');
-//        addToSquare(codeToCoord("E3"), 'b');
-//        addToSquare(codeToCoord("G3"), 'b');
-//        addToSquare(codeToCoord("G5"), 'b');
 
         printFull();
 
         think(moveString);
         printf("Der beste Zug ist: %s\n", moveString);
-
-
 
         // Aufräumarbeiten
         if (cleanupMain() != 0) fprintf(stderr, "Fehler beim Aufräumen\n");

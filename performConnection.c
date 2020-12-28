@@ -16,6 +16,8 @@ char recstring[MAX_LEN];
 char bufferstring[MAX_LEN];
 static bool moveShmExists = false;
 
+static struct gameInfo *pGeneralInfo;
+
 void receive_msg(int sock, char *recmsg){
 
     int shiftInRecmsg = 0;
@@ -215,17 +217,18 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
 
     // schreibt die empfangenen Daten in den Shared-Memory-Bereich
     // zuerst die allgemeinen Spielinfos
-    *pGame = createGameInfoStruct();
-    strncpy(pGame->gameKindName, gamekindserver, MAX_LENGTH_NAMES);
-    strncpy(pGame->gameName, gamename, MAX_LENGTH_NAMES);
-    pGame->numberOfPlayers = totalplayer;
-    pGame->ownPlayerNumber = ownPlayerNumber;
+    *pGeneralInfo = createGameInfoStruct();
+    strncpy(pGeneralInfo->gameKindName, gamekindserver, MAX_LENGTH_NAMES);
+    strncpy(pGeneralInfo->gameName, gamename, MAX_LENGTH_NAMES);
+    pGeneralInfo->numberOfPlayers = totalplayer;
+    pGeneralInfo->ownPlayerNumber = ownPlayerNumber;
 
     if (checkPlayerShmallocSize(totalplayer) != 0) {
         fprintf(stderr, "Fehler! Es wird zu wenig Shared-Memory-Platz für %d Spieler bereitgestellt.\n", totalplayer);
         close(sock);
         exit(EXIT_FAILURE);
     }
+
 
     // eigene Spielerinfos abspeichern
     struct playerInfo *pFirstPlayer = playerShmalloc();
@@ -257,7 +260,7 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
     /* Schleife, liest eine Zeile vom Server und handelt entsprechend: "+ WAIT" wird sofort beantwortet,
      * "+ MOVE <<Zugzeit>>" und "+ GAMEOVER" werden mit entsprechenden Funktionsaufrüfen behandelt. Sonst sollten keine
      * Nachrichten kommen (außer Fehler). */
-    while (pGame->isActive) {
+    while (pGeneralInfo->isActive) {
         printf("Neue Iteration\n"); // nur für mich, kann später weg
         receive_msg(sock, recstring);
         printf("In ingameBehavior: %s\n", recstring); // nur für mich, kann später weg
@@ -266,8 +269,8 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
             printf("Ich muss jetzt das WAIT beantworten!\n"); // nur für mich aus Paranoia, kann später weg
             send_msg(sock, "OKWAIT\n");
         } else if (strcmp(recstring+2, "GAMEOVER") == 0) {
-            pGame->isActive = false;
-            gameoverBehavior(sock, pMoveInfo, pGame);
+            pGeneralInfo->isActive = false;
+            gameoverBehavior(sock, pMoveInfo, pGeneralInfo);
         } else {
             /* ansonsten sollte recstring+2 die Form "WORT ZAHL" haben. Versuche, WORT nach recstring und Zahl nach
              * timeForMove zu schreiben. Wenn das nicht geht (falsches Format?) -> Fehler. */
@@ -279,10 +282,10 @@ void performConnection(int sock, char *gameID, int playerN, char* gamekindclient
             // Überprüfe, ob das WORT auch wirklich MOVE ist -> nur dann in moveBehavior gehen
             if (strcmp(recstring, "MOVE") == 0) {
                 if (!moveShmExists) {
-                    pMoveInfo = moveBehaviorFirstRound(sock, pGame);
+                    pMoveInfo = moveBehaviorFirstRound(sock, pGeneralInfo);
                     moveShmExists = true;
                 } else {
-                    moveBehavior(sock, pMoveInfo, pGame);
+                    moveBehavior(sock, pMoveInfo, pGeneralInfo);
                 }
             } else {
                 fprintf(stderr, "Fehler! Unbekannte Nachricht erhalten: %s.\n", recstring);
@@ -429,8 +432,10 @@ void processMoves(int sock, struct line *pLine, struct gameInfo *pGame) {
     pGame->sizeMoveShmem = counter;
     pGame->newMoveInfoAvailable = true;
 
+}
 
-
-
-
+/* Der Pointer auf den Shared-Memory-Bereich, in dem das Struct mit den allgemeinen Spielinformationen liegt, muss
+ * einmalig von main an performConnection übergeben werden, damit er dort verfügbar ist. */
+void setUpGeneralInfo(struct gameInfo *pGeneral) {
+    pGeneralInfo = pGeneral;
 }

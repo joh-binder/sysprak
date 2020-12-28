@@ -31,6 +31,8 @@ struct line {
     char line[MOVE_LINE_BUFFER];
 };
 
+static struct playerInfo *pStartPlayer;
+
 // erzeugt ein neues struct gameInfo und initialisiert es mit Standardwerten
 struct gameInfo createGameInfoStruct(void);
 
