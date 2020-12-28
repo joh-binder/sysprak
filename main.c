@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -9,6 +10,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/ipc.h>
+#include <signal.h>
 
 #include "shmfunctions.h"
 #include "thinkerfunctions.h"
@@ -20,20 +22,24 @@
 #define MOVE_BUFFER 256
 #define GAME_ID_LENGTH 13
 
+static bool signalFlag = false;
+
 static int shmidGeneralInfo;
 static int shmidPlayerInfo;
 static int shmidMoveInfo;
 static tower **pBoard;
 static tower *pTowers;
 
-// speichert die IP-Adresse von Hostname in punktierter Darstellung in einem char Array ab
-void hostnameToIp(char *ipA, char *hostname) {
+/* Speichert die IP-Adresse von Hostname in punktierter Darstellung in einem char Array ab.
+ * Gibt -1 im Fehlerfall zurück, sonst 0. */
+int hostnameToIp(char *ipA, char *hostname) {
     struct in_addr **addr_list;
     struct hostent *host;
 
     host = gethostbyname(hostname);
     if (host==NULL){
         herror("Konnte Rechner nicht finden");
+	return -1;
     }
 
     addr_list = (struct in_addr **) host->h_addr_list;
@@ -41,6 +47,13 @@ void hostnameToIp(char *ipA, char *hostname) {
     for (int i = 0; addr_list[i] != NULL; i++) {
         strcpy(ipA, inet_ntoa(*addr_list[i]));
     }
+    return 0;
+}
+
+// signal handler Thinker (= parent)
+void sigHandlerParent(int sig_nr) {
+    printf("Thinker: Signal (%d) bekommen vom Connector. \n", sig_nr);
+    signalFlag = true;
 }
 
 int cleanupMain(void) {
@@ -142,19 +155,33 @@ int main(int argc, char *argv[]) {
         address.sin_family = AF_INET;
         address.sin_port = htons(configInfo.portNumber);
         char ip[IP_BUFFER]; // hier wird die IP-Adresse (in punktierter Darstellung) gespeichert
-        hostnameToIp(ip, configInfo.hostName);
+        if (hostnameToIp(ip, configInfo.hostName) == -1) {
+            cleanupMain();
+            return EXIT_FAILURE;
+	    }
 
         // Socket erstellen
         if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-            printf("\n Error: Socket konnte nicht erstellt werden \n");
+            fprintf(stderr, "Fehler! Socket konnte nicht erstellt werden. \n");
+            cleanupMain();
+            return EXIT_FAILURE;
         }
 
         inet_aton(ip, &address.sin_addr);
         if (connect(sock, (struct sockaddr *) &address, sizeof(address)) < 0) {
-            printf("\n Error: Connect schiefgelaufen \n");
+            fprintf(stderr, "Fehler! Connect schiefgelaufen. \n");
+            cleanupMain();
+            close(sock);
+	    return EXIT_FAILURE;
         }
 
         performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo);
+        performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo, MAX_NUMBER_OF_PLAYERS);
+
+//        // Nachricht an Server:
+//        send_msg(sock, "THINKING");
+//        // Signal an Thinker
+//        kill(pGeneralInfo->pidThinker, SIGUSR1);
 
         close(sock);
 
@@ -162,6 +189,23 @@ int main(int argc, char *argv[]) {
 
         // wir sind im Elternprozess -> Thinker
         close(fd[0]); // schließt Leseende der Pipe
+
+        // Handler registrieren
+        if (signal(SIGUSR1, sigHandlerParent) == SIG_ERR) {
+            fprintf(stderr, "Fehler! Der signal handler konnte nicht registriert werden. \n");
+            shmDelete(shmidGeneralInfo);
+            shmDelete(shmidPlayerInfo);
+            return EXIT_FAILURE;
+        }
+
+        // muss wahrscheinlich noch an die richtige Stelle verschoben werden
+        // auf Signal warten
+        pause();
+
+        // Flag abfragen
+        if (signalFlag) {
+            //think();
+        }
 
         // schreibt die Thinker-PID in das Struct mit den gemeinsamen Spielinformationen
         pGeneralInfo->pidThinker = getpid();
