@@ -13,7 +13,7 @@ void receive_msg(int sock, char *recmsg);
 
 void send_msg(int sock, char *sendmsg);
 
-void performConnection(int sock, char *gameID, int playerN, char *gamekindclient, struct gameInfo *pGame);
+void performConnection(int sock, char *gameID, int playerN, char *gamekindclient);
 
 /* Verhalten nach "+ MOVE <<Zugzeit>>" nur in der ersten Runde, d.h. wenn noch kein Shared-Memory-Bereich für die
  * Spielsteine existiert: Liest alle Spielsteine ein und speichert sie zwischen (mit malloc --> Leakgefahr, nochmal checken!).

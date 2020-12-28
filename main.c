@@ -26,7 +26,7 @@ static bool signalFlag = false;
 
 static int shmidGeneralInfo;
 static int shmidPlayerInfo;
-static int shmidMoveInfo;
+static int shmidMoveInfo = -1;
 static tower **pBoard;
 static tower *pTowers;
 
@@ -59,7 +59,9 @@ void sigHandlerParent(int sig_nr) {
 int cleanupMain(void) {
     if (shmDelete(shmidGeneralInfo) > 0) return -1;
     if (shmDelete(shmidPlayerInfo) > 0) return -1;
-    if (shmDelete(shmidMoveInfo) > 0) return -1;
+    if (shmidMoveInfo != -1) {
+        if (shmDelete(shmidMoveInfo) > 0) return -1;
+    }
 
     if (pBoard != NULL) {
         free(pBoard);
@@ -175,8 +177,7 @@ int main(int argc, char *argv[]) {
 	    return EXIT_FAILURE;
         }
 
-        performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo);
-        performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName, pGeneralInfo, pPlayerInfo, MAX_NUMBER_OF_PLAYERS);
+        performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName);
 
 //        // Nachricht an Server:
 //        send_msg(sock, "THINKING");
@@ -192,20 +193,19 @@ int main(int argc, char *argv[]) {
 
         // Handler registrieren
         if (signal(SIGUSR1, sigHandlerParent) == SIG_ERR) {
-            fprintf(stderr, "Fehler! Der signal handler konnte nicht registriert werden. \n");
-            shmDelete(shmidGeneralInfo);
-            shmDelete(shmidPlayerInfo);
+            fprintf(stderr, "Fehler! Der Signal-Handler konnte nicht registriert werden.\n");
+            cleanupMain();
             return EXIT_FAILURE;
         }
 
-        // muss wahrscheinlich noch an die richtige Stelle verschoben werden
-        // auf Signal warten
-        pause();
-
-        // Flag abfragen
-        if (signalFlag) {
-            //think();
-        }
+//        // muss wahrscheinlich noch an die richtige Stelle verschoben werden
+//        // auf Signal warten
+//        pause();
+//
+//        // Flag abfragen
+//        if (signalFlag) {
+//            //think();
+//        }
 
         // schreibt die Thinker-PID in das Struct mit den gemeinsamen Spielinformationen
         pGeneralInfo->pidThinker = getpid();

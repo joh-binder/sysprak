@@ -56,7 +56,6 @@ int checkPlayerShmallocSize(int size);
  * versetzt, sodass der nächste Funktionsaufruf einen anderen Abschnitt liefert. */
 struct playerInfo *playerShmalloc();
 
-
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
  * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer */
 struct playerInfo *getPlayerFromNumber(int targetNumber);

@@ -101,7 +101,7 @@ void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer
     printf("=========================================\n");
 }
 
-void performConnection(int sock, char *gameID, int playerN, char* gamekindclient, struct gameInfo *pGame) {
+void performConnection(int sock, char *gameID, int playerN, char* gamekindclient) {
 
     char gamekindserver[MAX_LEN];
     char gamename[MAX_LEN];
