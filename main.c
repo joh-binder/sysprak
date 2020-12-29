@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
 	    return EXIT_FAILURE;
         }
 
-        mainloop_epoll(sock, fd[2], gameID, wantedPlayerNumber);
+        mainloop_epoll(sock, fd, gameID, wantedPlayerNumber);
 
 //        // Nachricht an Server:
 //        send_msg(sock, "THINKING");
