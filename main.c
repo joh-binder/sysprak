@@ -120,12 +120,12 @@ int main(int argc, char *argv[]) {
     // erzeugt ein struct GameInfo in einem dafür angelegten Shared-Memory-Bereich
     shmidGeneralInfo = shmCreate(sizeof(struct gameInfo));
     struct gameInfo *pGeneralInfo = shmAttach(shmidGeneralInfo);
-    setUpGeneralInfo(pGeneralInfo);
 
     // legt einen Shared-Memory-Bereich für die struct playerInfos an
     shmidPlayerInfo = createShmemoryForPlayers();
     struct playerInfo *pPlayerInfo = shmAttach(shmidPlayerInfo);
     setUpPlayerAlloc(pPlayerInfo);
+    setUpShmemPointers(pGeneralInfo, pPlayerInfo);
 
     // Erstellung der Pipe
     int fd[2];

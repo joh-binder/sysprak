@@ -8,6 +8,7 @@
 
 static int playerShmallocCounter = 0;
 static unsigned int sizeOfPlayerShmallocBlock = MAX_NUMBER_OF_PLAYERS_IN_SHMEM * sizeof(struct playerInfo);
+static struct playerInfo *pStartPlayer;
 
 static unsigned int sizeOfMoveShmallocBlock;
 

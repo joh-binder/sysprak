@@ -34,8 +34,8 @@ void gameoverBehavior(int sock, struct line *pLine, struct gameInfo *pGame);
  * die Anzahl der gelesenen Spielsteine und setzt die Flag für Thinker, dass neue Info verfügbar ist. */
 void processMoves(int sock, struct line *pLine, struct gameInfo *pGame);
 
-/* Der Pointer auf den Shared-Memory-Bereich, in dem das Struct mit den allgemeinen Spielinformationen liegt, muss
- * einmalig von main an performConnection übergeben werden, damit er dort verfügbar ist. */
-void setUpGeneralInfo(struct gameInfo *pGeneral);
+/* Die Pointer auf den Shared-Memory-Bereich für die allgemeinen Spielinfos und die Infos zu den einzelnen Spielern
+ * müssen einmalig von main an performConnection übergeben werden, damit er dort verfügbar ist. */
+void setUpShmemPointers(struct gameInfo *pGeneral, struct playerInfo *pPlayers);
 
 #endif

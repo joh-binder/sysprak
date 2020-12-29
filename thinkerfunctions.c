@@ -248,10 +248,10 @@ void moveTower(coordinate origin, coordinate target) {
     board[8*origin.yCoord + origin.xCoord] = NULL;
 
     // evtl. Verwandlung in Dame
-    if (getTopPiece(target) == 'w' & target.yCoord == 7) {
+    if (getTopPiece(target) == 'w' && target.yCoord == 7) {
         getPointerToSquare(target)->piece = 'W';
         justConvertedToQueen = true;
-    } else if (getTopPiece(target) == 'b' & target.yCoord == 0) {
+    } else if (getTopPiece(target) == 'b' && target.yCoord == 0) {
         getPointerToSquare(target)->piece = 'B';
         justConvertedToQueen = true;
     }
@@ -476,10 +476,10 @@ void captureTower(coordinate origin, coordinate target) {
     board[8*origin.yCoord + origin.xCoord] = NULL;
 
     // evtl. Verwandlung in Dame
-    if (getTopPiece(target) == 'w' & target.yCoord == 7) {
+    if (getTopPiece(target) == 'w' && target.yCoord == 7) {
         getPointerToSquare(target)->piece = 'W';
         justConvertedToQueen = true;
-    } else if (getTopPiece(target) == 'b' & target.yCoord == 0) {
+    } else if (getTopPiece(target) == 'b' && target.yCoord == 0) {
         getPointerToSquare(target)->piece = 'B';
         justConvertedToQueen = true;
     }
