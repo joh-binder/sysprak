@@ -15,22 +15,6 @@ static char ownNormalTower, ownQueenTower, opponentNormalTower, opponentQueenTow
 
 static bool justConvertedToQueen = false;
 
-int minInt(int a, int b) {
-    if (b < a) return b;
-    else return a;
-}
-
-int getSign(int a) {
-    if (a == 0) return 0;
-    else if (a > 0) return 1;
-    else return -1;
-}
-
-int abs(int a) {
-    if (a >= 0) return a;
-    else return -a;
-}
-
 /* In der Main-Methode sollte ein Speicher für ein Spielbrett (64 Pointer auf tower) gemalloced werden. Der entstehende
  * Pointer muss einmalig mit dieser Funktion an dieses Modul übergeben werden, damit die statische Variable tower **board
  * gesetzt werden kann, die dann die meisten Funktionen im Modul benutzen. */
@@ -665,6 +649,7 @@ move tryCaptureAgain(coordinate nowBlocked, coordinate newOrigin) {
  */
 void towerToString(char *target, coordinate c) {
     char ret[32+1];
+    memset(ret, 0, 32+1);
     tower *pCurrent = getPointerToSquare(c);
 
     int i = 0;

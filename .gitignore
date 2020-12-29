@@ -1,7 +1,8 @@
 /sysprak-client
 /main.o
-/performConnection.o
+/mainloop.o
 /shmfunctions.o
 /helperfunctions.a
 /config.o
 /thinkerfunctions.o
+/util.o

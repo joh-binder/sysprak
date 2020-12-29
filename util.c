@@ -11,3 +11,19 @@ bool startsWith(const char *a, const char *b){
     return 1;
   return 0;
 }
+
+int minInt(int a, int b) {
+    if (b < a) return b;
+    else return a;
+}
+
+int getSign(int a) {
+    if (a == 0) return 0;
+    else if (a > 0) return 1;
+    else return -1;
+}
+
+int abs(int a) {
+    if (a >= 0) return a;
+    else return -a;
+}

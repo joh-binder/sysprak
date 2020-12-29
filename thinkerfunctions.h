@@ -2,6 +2,7 @@
 #define SYSPRAK_THINKERFUNCTIONS_H
 
 #include <float.h>
+#include "util.h"
 
 /* TODO Kapseln: Viele dieser Funktionen müssen nicht wirklich in main.c sichtbar sein. */
 

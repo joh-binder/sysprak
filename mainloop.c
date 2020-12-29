@@ -343,6 +343,9 @@ void mainloop_sockline(char* line){
             sprintf(buffer, "THINKING\n");
             bytessend = write(sockfiled, buffer, strlen(buffer));
         } else if (strcmp(line, "+ OKTHINK") == 0) {
+            // TODO: Signal an Thinker senden
+        } else if (strcmp(line, "+ MOVEOK") == 0) {
+            printf("Spielzug wurde akzeptiert\n");
             counter = 7; // d.h. zurück in den Normalzutand
         } else { // d.h. diese Zeile ist ein Spielstein
             printf("Spielstein (in Move, erste Runde): %s\n", line+2);
@@ -359,6 +362,9 @@ void mainloop_sockline(char* line){
             sprintf(buffer, "THINKING\n");
             bytessend = write(sockfiled, buffer, strlen(buffer));
         } else if (strcmp(line, "+ OKTHINK") == 0) {
+            // TODO: Signal an Thinker senden
+        } else if (strcmp(line, "+ MOVEOK") == 0) {
+            printf("Spielzug wurde akzeptiert\n");
             counter = 7; // d.h. zurück in den Normalzutand
         } else { // d.h. diese Zeile ist ein Spielstein
             printf("Spielstein (in Move normal): %s\n", line+2);

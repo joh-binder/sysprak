@@ -76,7 +76,7 @@ int cleanupMain(void) {
 int main(int argc, char *argv[]) {
 
     // legt Variablen für Game-ID, Spielernummer und Pfad der Konfigurationsdatei an
-    char gameID[GAME_ID_LENGTH+1];
+    char gameID[GAME_ID_LENGTH+1] = "";
     int wantedPlayerNumber = 0;
     char *confFilePath = "client.conf";
 
@@ -216,6 +216,11 @@ int main(int argc, char *argv[]) {
 
         wait(NULL);
 
+        printf("Ich bin im Elternprozess und versuche, aus dem Shmemory zu lesen:\n");
+        printf("Allgemein: %s, %s, %d, %d\n", pGeneralInfo->gameKindName, pGeneralInfo->gameName, pGeneralInfo->numberOfPlayers, pGeneralInfo->ownPlayerNumber);
+        printf("Ich:  %s, %d, %d\n", pPlayerInfo->playerName, pPlayerInfo->playerNumber, pPlayerInfo->readyOrNot);
+        printf("Gegner:  %s, %d, %d\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber, (pPlayerInfo+1)->readyOrNot);
+
         // Shared-Memory für die Spielzüge aufrufen
         shmidMoveInfo = accessExistingMoveShmem();
         struct line *pMoveInfo = shmAttach(shmidMoveInfo);
@@ -230,7 +235,7 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
 
-        char moveString[MOVE_BUFFER];
+        char moveString[MOVE_BUFFER] = "";
 
         // ab hier: jede Runde wiederholen
 
@@ -258,6 +263,9 @@ int main(int argc, char *argv[]) {
 
         think(moveString);
         printf("Der beste Zug ist: %s\n", moveString);
+        // TODO: Zug an Connector senden
+
+        // bis hierhin wiederholen
 
         // Aufräumarbeiten
         if (cleanupMain() != 0) fprintf(stderr, "Fehler beim Aufräumen\n");
