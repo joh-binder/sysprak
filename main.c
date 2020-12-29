@@ -13,8 +13,8 @@
 #include <signal.h>
 
 #include "shmfunctions.h"
+#include "mainloop.h"
 #include "thinkerfunctions.h"
-#include "performConnection.h"
 #include "config.h"
 
 #define IP_BUFFER 256 // für Array mit IP-Adresse
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
 	    return EXIT_FAILURE;
         }
 
-        performConnection(sock, gameID, wantedPlayerNumber, configInfo.gameKindName);
+        mainloop_epoll(sock, fd[2], gameID, wantedPlayerNumber);
 
 //        // Nachricht an Server:
 //        send_msg(sock, "THINKING");
