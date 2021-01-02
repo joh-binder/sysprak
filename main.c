@@ -18,7 +18,6 @@
 #include "config.h"
 
 #define IP_BUFFER 256 // für Array mit IP-Adresse
-#define PIPE_BUFFER 256
 #define MOVE_BUFFER 256
 #define GAME_ID_LENGTH 13
 
@@ -151,7 +150,6 @@ int main(int argc, char *argv[]) {
 
     // Erstellung der Pipe
     int fd[2];
-    char pipeBuffer[PIPE_BUFFER];
 
     if (pipe(fd) < 0) {
         perror("Fehler beim Erstellen der Pipe");
@@ -196,15 +194,10 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Fehler! Connect schiefgelaufen. \n");
             cleanupMain();
             close(sock);
-	    return EXIT_FAILURE;
+	        return EXIT_FAILURE;
         }
 
         mainloop_epoll(sock, fd, gameID, wantedPlayerNumber);
-
-//        // Nachricht an Server:
-//        send_msg(sock, "THINKING");
-//        // Signal an Thinker
-//        kill(pGeneralInfo->pidThinker, SIGUSR1);
 
         close(sock);
 
@@ -271,18 +264,18 @@ int main(int argc, char *argv[]) {
 
 			think(moveString);
 			printf("Der beste Zug ist: %s\n", moveString);
-			// TODO: Zug an Connector senden
 			write(fd[1],moveString,strlen(moveString));
 
-		} else if (!pGeneralInfo->isActive) {
-			break;
+		} else if (!(pGeneralInfo->isActive)) {
+			printf("Ich breche jetzt aus der Schleife\n");
+		    break;
 		}
 		pause();
 	}
 
         // Aufräumarbeiten
         if (cleanupMain() != 0) fprintf(stderr, "Fehler beim Aufräumen\n");
-	wait(NULL); // gehört hier wahrscheinlich nicht hin
+	    wait(NULL); // gehört hier wahrscheinlich nicht hin
     }
 
     return EXIT_SUCCESS;

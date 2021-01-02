@@ -524,6 +524,7 @@ float evaluateCapture(coordinate origin, coordinate target) {
  * führen würden. Gibt den besten möglichen Zug zurück. Wenn keine Schläge möglich sind: Gibt Standard-move mit
  * origin- und target-Koordinaten -1 und rating FLT_MIN zurück. */
 move tryAllCapturesExcept(coordinate origin, coordinate blocked) {
+
     char strOrigin[3];
     char strTarget[3];
     int newX, newY;
@@ -566,6 +567,7 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked) {
                     bestMove.target = numsToCoord(newX, newY);
                     bestMove.rating = rating;
                 }
+
             }
         }
 
@@ -596,25 +598,30 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked) {
                     break;
             }
 
+            // nur überprüfen, wenn blocked eine echte Koordinate ist (nicht der Dummy -1, -1 -> sonst wird versehentlich der Zug nach links unten blockiert)
+            if (blocked.xCoord != -1 && blocked.yCoord != -1) {
+                // berechne die blockierte Richtung, in diese dürfen wir nicht ziehen
+                int blockedXDirection = getSign(blocked.xCoord - origin.xCoord);
+                int blockedYDirection = getSign(blocked.yCoord - origin.yCoord);
+                if (xDirection == blockedXDirection && yDirection == blockedYDirection) continue;
+            }
+
             for (int i = 2; i < 8; i++) {
                 newX = origin.xCoord + i * xDirection;
                 newY = origin.yCoord + i * yDirection;
 
-                if (newX == blocked.xCoord && newY == blocked.yCoord) break;
                 if (checkCapture(origin, numsToCoord(newX, newY)) != 0) continue;
 
                 coordToCode(strTarget, numsToCoord(newX, newY));
                 printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-                rating = 1.0; // später feingranularer berechnen
+                rating = evaluateCapture(origin, numsToCoord(newX, newY));
                 if (rating > bestMove.rating) {
                     bestMove.origin = origin;
                     bestMove.target = numsToCoord(newX, newY);
                     bestMove.rating = rating;
                 }
 
-                captureTower(origin, numsToCoord(newX, newY));
-                undoCaptureTower(origin, numsToCoord(newX, newY));
                 break;
             }
         }
@@ -627,6 +634,7 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked) {
  * könnte, und gibt den besten davon zurück. [Spezialfall von tryAllCapturesExcept, Except wird nicht genutzt]*/
 move tryAllCaptures(coordinate origin) {
     return tryAllCapturesExcept(origin, numsToCoord(-1, -1));
+
 }
 
 /* Wendet tryAllCapturesExcept an. Wenn kein gültiger Spielzug existiert, werden in move origin und target beide auf
@@ -831,6 +839,8 @@ void think(char *answer) {
     move thisMove = createMoveStruct();
     int answerCounter = 0;
 
+    justConvertedToQueen = false;
+
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
             if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
@@ -858,6 +868,7 @@ void think(char *answer) {
         while (moreCapturesLoop) {
             // führe den besten Zug tatsächlich aus
             captureTower(overallBestMove.origin, overallBestMove.target);
+            justConvertedToQueen = false;
 
             overallBestMove = tryCaptureAgain(overallBestMove.origin, overallBestMove.target);
 
