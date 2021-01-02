@@ -65,6 +65,7 @@ int cleanupMain(void) {
     if (pBoard != NULL) {
         free(pBoard);
     }
+
     if (pTowers != NULL) {
         free(pTowers);
     }
@@ -80,18 +81,18 @@ void sigHandlerCtrlC(int sig_nr) {
 }
 
 // signal handler Thinker
-void sigHandlerMoves(int sig_nr){
+void sigHandlerMoves(int sig_nr) {
     printf("Thinker: Signal (%d) bekommen vom Connector. (Moves) \n", sig_nr);
     sigFlagMoves = true;
 }
 
 int main(int argc, char *argv[]) {
-	
+
 	// Signalhandler der Main Methode registrieren
 	if (signal(SIGINT, sigHandlerCtrlC) == SIG_ERR) {
-    		fprintf(stderr, "Fehler! Der Signal-Handler konnte nicht registriert werden.\n");
-    		cleanupMain();
-    		return EXIT_FAILURE;
+		fprintf(stderr, "Fehler! Der Signal-Handler konnte nicht registriert werden.\n");
+		cleanupMain();
+		return EXIT_FAILURE;
 	}
 
     // legt Variablen für Game-ID, Spielernummer und Pfad der Konfigurationsdatei an
@@ -202,19 +203,18 @@ int main(int argc, char *argv[]) {
         close(sock);
 
     } else {
-
         // wir sind im Elternprozess -> Thinker
         close(fd[0]); // schließt Leseende der Pipe
 
-	// schreibt die Thinker-PID in das Struct mit den gemeinsamen Spielinformationen
-	pGeneralInfo->pidThinker = getpid();
+        // schreibt die Thinker-PID in das Struct mit den gemeinsamen Spielinformationen
+        pGeneralInfo->pidThinker = getpid();
 
         // Handler registrieren
-	if (signal(SIGUSR1, sigHandlerMoves) == SIG_ERR) {
-	    fprintf(stderr, "Fehler! Der Signal-Handler konnte nicht registriert werden.\n");
-	    cleanupMain();
-	    return EXIT_FAILURE;
-	}
+    	if (signal(SIGUSR1, sigHandlerMoves) == SIG_ERR) {
+    	    fprintf(stderr, "Fehler! Der Signal-Handler konnte nicht registriert werden.\n");
+    	    cleanupMain();
+    	    return EXIT_FAILURE;
+    	}
 
         // alloziert Speicherplatz für das Spielbrett
         pBoard = malloc(sizeof(tower *) * 64);
@@ -242,40 +242,39 @@ int main(int argc, char *argv[]) {
         }
 
         char moveString[MOVE_BUFFER] = "";
-	
-	while(true){
-		// ab hier: jede Runde wiederholen
-		if (sigFlagMoves && pGeneralInfo->newMoveInfoAvailable){
-			pGeneralInfo->newMoveInfoAvailable = false;
-			sigFlagMoves = false;
 
-			resetTallocCounter();
-			resetBoard();
-			memset(moveString, 0, strlen(moveString));
+    	while(true){
+    		if (sigFlagMoves && pGeneralInfo->newMoveInfoAvailable){
+    			pGeneralInfo->newMoveInfoAvailable = false;
+    			sigFlagMoves = false;
 
-			for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
-			    if (addToSquare(codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0]) != 0) {
-				cleanupMain();
-				return EXIT_FAILURE;
-			    }
-			}
+    			resetTallocCounter();
+    			resetBoard();
+    			memset(moveString, 0, strlen(moveString));
 
-			printFull();
+    			for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
+    			    if (addToSquare(codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0]) != 0) {
+    				cleanupMain();
+    				return EXIT_FAILURE;
+    			    }
+    			}
 
-			think(moveString);
-			printf("Der beste Zug ist: %s\n", moveString);
-			write(fd[1],moveString,strlen(moveString));
+    			printFull();
 
-		} else if (!(pGeneralInfo->isActive)) {
+			    think(moveString);
+			    printf("Der beste Zug ist: %s\n", moveString);
+			    write(fd[1],moveString,strlen(moveString));
+
+		    } else if (!(pGeneralInfo->isActive)) {
 			printf("Ich breche jetzt aus der Schleife\n");
 		    break;
-		}
-		pause();
-	}
+		    }
+		    pause();
+	    }
 
         // Aufräumarbeiten
         if (cleanupMain() != 0) fprintf(stderr, "Fehler beim Aufräumen\n");
-	    wait(NULL); // gehört hier wahrscheinlich nicht hin
+        wait(NULL);
     }
 
     return EXIT_SUCCESS;
