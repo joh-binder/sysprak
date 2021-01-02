@@ -22,10 +22,9 @@
 #define MOVE_BUFFER 256
 #define GAME_ID_LENGTH 13
 
-static bool signalFlag = false;
-
-static int shmidGeneralInfo;
-static int shmidPlayerInfo;
+static bool sigFlagMoves = false;
+static int shmidGeneralInfo = -1;
+static int shmidPlayerInfo = -1;
 static int shmidMoveInfo = -1;
 static tower **pBoard;
 static tower *pTowers;
@@ -50,15 +49,16 @@ int hostnameToIp(char *ipA, char *hostname) {
     return 0;
 }
 
-// signal handler Thinker (= parent)
-void sigHandlerParent(int sig_nr) {
-    printf("Thinker: Signal (%d) bekommen vom Connector. \n", sig_nr);
-    signalFlag = true;
-}
 
 int cleanupMain(void) {
-    if (shmDelete(shmidGeneralInfo) > 0) return -1;
-    if (shmDelete(shmidPlayerInfo) > 0) return -1;
+    if (shmidGeneralInfo != -1) {
+        if (shmDelete(shmidGeneralInfo) > 0) return -1;
+    }
+
+    if (shmidPlayerInfo != -1) {
+        if (shmDelete(shmidPlayerInfo) > 0) return -1;
+    }
+
     if (shmidMoveInfo != -1) {
         if (shmDelete(shmidMoveInfo) > 0) return -1;
     }
@@ -73,7 +73,27 @@ int cleanupMain(void) {
     return 0;
 }
 
+// signal handler Ctrl-C
+void sigHandlerCtrlC(int sig_nr) {
+    printf("\nProgramm wurde mit ctrl-c (Signal = %d) beendet. \n", sig_nr);
+    cleanupMain();
+    exit(EXIT_SUCCESS);
+}
+
+// signal handler Thinker
+void sigHandlerMoves(int sig_nr){
+    printf("Thinker: Signal (%d) bekommen vom Connector. (Moves) \n", sig_nr);
+    sigFlagMoves = true;
+}
+
 int main(int argc, char *argv[]) {
+	
+	// Signalhandler der Main Methode registrieren
+	if (signal(SIGINT, sigHandlerCtrlC) == SIG_ERR) {
+    		fprintf(stderr, "Fehler! Der Signal-Handler konnte nicht registriert werden.\n");
+    		cleanupMain();
+    		return EXIT_FAILURE;
+	}
 
     // legt Variablen für Game-ID, Spielernummer und Pfad der Konfigurationsdatei an
     char gameID[GAME_ID_LENGTH+1] = "";
@@ -120,6 +140,8 @@ int main(int argc, char *argv[]) {
     // erzeugt ein struct GameInfo in einem dafür angelegten Shared-Memory-Bereich
     shmidGeneralInfo = shmCreate(sizeof(struct gameInfo));
     struct gameInfo *pGeneralInfo = shmAttach(shmidGeneralInfo);
+
+    *pGeneralInfo = createGameInfoStruct();
 
     // legt einen Shared-Memory-Bereich für die struct playerInfos an
     shmidPlayerInfo = createShmemoryForPlayers();
@@ -191,30 +213,21 @@ int main(int argc, char *argv[]) {
         // wir sind im Elternprozess -> Thinker
         close(fd[0]); // schließt Leseende der Pipe
 
+	// schreibt die Thinker-PID in das Struct mit den gemeinsamen Spielinformationen
+	pGeneralInfo->pidThinker = getpid();
+
         // Handler registrieren
-        if (signal(SIGUSR1, sigHandlerParent) == SIG_ERR) {
-            fprintf(stderr, "Fehler! Der Signal-Handler konnte nicht registriert werden.\n");
-            cleanupMain();
-            return EXIT_FAILURE;
-        }
-
-//        // muss wahrscheinlich noch an die richtige Stelle verschoben werden
-//        // auf Signal warten
-//        pause();
-//
-//        // Flag abfragen
-//        if (signalFlag) {
-//            //think();
-//        }
-
-        // schreibt die Thinker-PID in das Struct mit den gemeinsamen Spielinformationen
-        pGeneralInfo->pidThinker = getpid();
+	if (signal(SIGUSR1, sigHandlerMoves) == SIG_ERR) {
+	    fprintf(stderr, "Fehler! Der Signal-Handler konnte nicht registriert werden.\n");
+	    cleanupMain();
+	    return EXIT_FAILURE;
+	}
 
         // alloziert Speicherplatz für das Spielbrett
         pBoard = malloc(sizeof(tower *) * 64);
         setUpBoard(pBoard);
 
-        wait(NULL);
+        pause();
 
         printf("Ich bin im Elternprozess und versuche, aus dem Shmemory zu lesen:\n");
         printf("Allgemein: %s, %s, %d, %d\n", pGeneralInfo->gameKindName, pGeneralInfo->gameName, pGeneralInfo->numberOfPlayers, pGeneralInfo->ownPlayerNumber);
@@ -236,40 +249,40 @@ int main(int argc, char *argv[]) {
         }
 
         char moveString[MOVE_BUFFER] = "";
+	
+	while(true){
+		// ab hier: jede Runde wiederholen
+		if (sigFlagMoves && pGeneralInfo->newMoveInfoAvailable){
+			pGeneralInfo->newMoveInfoAvailable = false;
+			sigFlagMoves = false;
 
-        // ab hier: jede Runde wiederholen
+			resetTallocCounter();
+			resetBoard();
+			memset(moveString, 0, strlen(moveString));
 
-        resetTallocCounter();
-        resetBoard();
-        memset(moveString, 0, strlen(moveString));
+			for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
+			    if (addToSquare(codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0]) != 0) {
+				cleanupMain();
+				return EXIT_FAILURE;
+			    }
+			}
 
-        for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
-            if (addToSquare(codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0]) != 0) {
-                cleanupMain();
-                return EXIT_FAILURE;
-            }
-        }
+			printFull();
 
-        // die obige for-Schleife auskommentieren und stattdessen diesen Block einkommentieren, um eine andere Stellung (au0er der Startposition) zu testen
-//        addToSquare(codeToCoord("B4"), 'W');
-//        addToSquare(codeToCoord("D2"), 'b');
-//        addToSquare(codeToCoord("F4"), 'w');
-//        addToSquare(codeToCoord("E5"), 'b');
-//        addToSquare(codeToCoord("E7"), 'b');
-//        addToSquare(codeToCoord("D6"), 'w');
-//        addToSquare(codeToCoord("F2"), 'B');
+			think(moveString);
+			printf("Der beste Zug ist: %s\n", moveString);
+			// TODO: Zug an Connector senden
+			write(fd[1],moveString,strlen(moveString));
 
-        printFull();
-
-        think(moveString);
-        printf("Der beste Zug ist: %s\n", moveString);
-        // TODO: Zug an Connector senden
-
-        // bis hierhin wiederholen
+		} else if (!pGeneralInfo->isActive) {
+			break;
+		}
+		pause();
+	}
 
         // Aufräumarbeiten
         if (cleanupMain() != 0) fprintf(stderr, "Fehler beim Aufräumen\n");
-
+	wait(NULL); // gehört hier wahrscheinlich nicht hin
     }
 
     return EXIT_SUCCESS;

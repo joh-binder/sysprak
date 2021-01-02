@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
+#include <signal.h>
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -15,7 +15,6 @@
 
 #define MAX_LEN 1024
 #define MAX_EVENTS 2
-#define MOVE 5
 #define CLIENTVERSION "2.0"
 #define GAMEKINDNAME "Bashni"
 
@@ -39,6 +38,7 @@ int counter = 0;
 // Pointer auf die Shared-Memory-Bereiche
 static struct gameInfo *pGeneralInfo;
 static struct playerInfo *pPlayerInfo;
+static struct line *pMoves;
 
 // hier kommen die Infos zu den Gegnern rein
 static struct tempPlayerInfo oppInfo[MAX_NUMBER_OF_PLAYERS_IN_SHMEM-1];
@@ -74,8 +74,7 @@ void mainloop_pipeline(char* line){
     char buffer[MAX_LEN];
     int bytessend;
 
-    strcpy(buffer,"");
-
+    memset(buffer, 0, MAX_LEN);
     sprintf(buffer, "PLAY %s\n", line);
     bytessend = write(sockfiled, buffer, strlen(buffer));
 
@@ -329,12 +328,12 @@ void mainloop_sockline(char* line){
 
             // erzeugt einen Shared-Memory-Bereich in passender Größe für alle Spielsteine (als struct line)
             int shmidMoveInfo = createShmemoryForMoves(countPieceLines);
-            struct line *ret = shmAttach(shmidMoveInfo);
+            pMoves = shmAttach(shmidMoveInfo);
             moveShmExists = true;
 
             // überträgt alle Spielsteininfos vom gemallocten Zwischenspeicher in das neue Shmemory
             for (int i = 0; i < countPieceLines; i++) {
-                ret[i] = createLineStruct(pTempMemoryForPieces[i].line);
+                pMoves[i] = createLineStruct(pTempMemoryForPieces[i].line);
             }
 
             pGeneralInfo->newMoveInfoAvailable = true;
@@ -344,6 +343,7 @@ void mainloop_sockline(char* line){
             bytessend = write(sockfiled, buffer, strlen(buffer));
         } else if (strcmp(line, "+ OKTHINK") == 0) {
             // TODO: Signal an Thinker senden
+	    kill(pGeneralInfo->pidThinker, SIGUSR1);
         } else if (strcmp(line, "+ MOVEOK") == 0) {
             printf("Spielzug wurde akzeptiert\n");
             counter = 7; // d.h. zurück in den Normalzutand
@@ -363,12 +363,13 @@ void mainloop_sockline(char* line){
             bytessend = write(sockfiled, buffer, strlen(buffer));
         } else if (strcmp(line, "+ OKTHINK") == 0) {
             // TODO: Signal an Thinker senden
+	    kill(pGeneralInfo->pidThinker, SIGUSR1);
         } else if (strcmp(line, "+ MOVEOK") == 0) {
             printf("Spielzug wurde akzeptiert\n");
             counter = 7; // d.h. zurück in den Normalzutand
         } else { // d.h. diese Zeile ist ein Spielstein
             printf("Spielstein (in Move normal): %s\n", line+2);
-            pTempMemoryForPieces[countPieceLines] = createLineStruct(line+2);
+            pMoves[countPieceLines] = createLineStruct(line+2);
             countPieceLines++;
         }
     } else if (counter == 10) { // Zustand nach Gameover
@@ -434,8 +435,8 @@ void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
     char buffersock[MAX_LEN];
     char bufferpipe[MAX_LEN];
 
-    strcpy(buffersock,"");
-    strcpy(bufferpipe,"");
+    memset(buffersock, 0, MAX_LEN);
+    memset(bufferpipe, 0, MAX_LEN);
 
     sockfiled = sockfd;
     pipefiled = pipefd[2];
@@ -476,8 +477,6 @@ void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
         exit(EXIT_FAILURE);
     }
 
-    *pGeneralInfo = createGameInfoStruct();
-
     //Eventloop
     while(pGeneralInfo->isActive){
         //Warten auf Event
@@ -492,17 +491,9 @@ void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
         for (int n = 0; n < nfds; ++n){
             //Lesen aus der Pipe
             if (events[n].data.fd == pipefd[0]){
-
+	    
                 int bufferlen = read(pipefd[0], bufferpipe, MAX_LEN);
-                if(bufferlen != MOVE){
-                    perror("Fehler beim Lesen aus der Pipe.\n");
-                    pGeneralInfo->isActive = 0;
-                    close(sockfiled);
-                    close(pipefiled);
-                    exit(EXIT_FAILURE);
-                }else{
-                    mainloop_filehandler(bufferpipe, bufferlen, &pipebuffer);
-                }
+		mainloop_filehandler(bufferpipe, bufferlen, &pipebuffer);
 
             //Lesen vom Socket
             }else if (events[n].data.fd == sockfiled){

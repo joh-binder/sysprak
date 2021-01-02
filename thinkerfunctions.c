@@ -899,4 +899,5 @@ void think(char *answer) {
         answerCounter += 2;
     }
 
+    answer[answerCounter] = '\n';
 }
