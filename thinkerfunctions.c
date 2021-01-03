@@ -841,6 +841,7 @@ void think(char *answer) {
 
     justConvertedToQueen = false;
 
+    // versuche erst, einen gültigen Schlag-Teilzug zu finden
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
             if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
@@ -855,6 +856,7 @@ void think(char *answer) {
         }
     }
 
+    // wenn ein gültiger Schlag-Teilzug gefunden werden kann: in answer schreiben, danach in Schleife nach weiteren Teilzügen vom Zielfeld aus suchen
     if (overallBestMove.origin.xCoord != -1 && overallBestMove.origin.yCoord != -1 && overallBestMove.target.xCoord != -1 && overallBestMove.target.yCoord != -1) {
         coordToCode(answer, overallBestMove.origin);
         answerCounter += 2;
@@ -866,17 +868,16 @@ void think(char *answer) {
         bool moreCapturesLoop = true;
 
         while (moreCapturesLoop) {
+            printf("Verwende den Teilzug %s und suche weiter:\n", answer);
             // führe den besten Zug tatsächlich aus
             captureTower(overallBestMove.origin, overallBestMove.target);
             justConvertedToQueen = false;
 
             overallBestMove = tryCaptureAgain(overallBestMove.origin, overallBestMove.target);
 
-            char temp[3];
-            coordToCode(temp, overallBestMove.target);
-
             if (overallBestMove.origin.xCoord == overallBestMove.target.xCoord && overallBestMove.origin.yCoord == overallBestMove.target.yCoord) {
                 // kein weiteres Schlagen mehr möglich
+                printf("Von hier ist kein weiterer Teilzug möglich.\n");
                 moreCapturesLoop = false;
             } else {
                 // weiterer Schlagzug gefunden -> in answer schreiben
@@ -887,7 +888,7 @@ void think(char *answer) {
             }
 
         }
-    } else {
+    } else { // kein Schlag-Teilzug gefunden -> suche Beweg-Zug
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
                 if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
@@ -910,5 +911,5 @@ void think(char *answer) {
         answerCounter += 2;
     }
 
-    answer[answerCounter] = '\n';
+    answer[answerCounter] = '\n'; // answer braucht am Ende ein Newline, sonst wird die Nachricht in mainloop_filehandler liegengelassen
 }

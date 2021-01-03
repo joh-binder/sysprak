@@ -289,8 +289,6 @@ void mainloop_sockline(char* line){
 
     } else if (counter == 7) { // entspricht "normalem" Zustand nach dem Prolog
 
-        printf("!!! Ich bin im Normalzustand und line ist: %s\n", line);
-
         if (startsWith(line, "+ WAIT")) {
             sprintf(buffer, "OKWAIT\n");
             bytessend = write(sockfiled, buffer, strlen(buffer));
@@ -347,7 +345,7 @@ void mainloop_sockline(char* line){
             printf("Spielzug wurde akzeptiert\n");
             counter = 7; // d.h. zurück in den Normalzutand
         } else { // d.h. diese Zeile ist ein Spielstein
-            printf("Spielstein (in Move, erste Runde): %s\n", line+2);
+            // printf("Spielstein (in Move, erste Runde): %s\n", line+2);
             pTempMemoryForPieces = (struct line *)realloc(pTempMemoryForPieces, (countPieceLines+1) * sizeof(struct line)); // Platz für ein struct line mehr von realloc holen
             pTempMemoryForPieces[countPieceLines] = createLineStruct(line+2); // den empfangenen String in den gereallocten Speicher schreiben
             countPieceLines++;
@@ -357,6 +355,7 @@ void mainloop_sockline(char* line){
         if (startsWith(line, "+ PIECESLIST")) {
             countPieceLines = 0;
         } else if (strcmp(line, "+ ENDPIECESLIST") == 0) {
+            pGeneralInfo->sizeMoveShmem = countPieceLines; // der Allgemeinheit halber, ist aber in Bashni immer 32
             pGeneralInfo->newMoveInfoAvailable = true;
             sprintf(buffer, "THINKING\n");
             bytessend = write(sockfiled, buffer, strlen(buffer));
@@ -371,7 +370,7 @@ void mainloop_sockline(char* line){
             printf("Spielzug wurde akzeptiert\n");
             counter = 7; // d.h. zurück in den Normalzutand
         } else { // d.h. diese Zeile ist ein Spielstein
-            printf("Spielstein (in Move normal): %s\n", line+2);
+            // printf("Spielstein (in Move normal): %s\n", line+2);
             pMoves[countPieceLines] = createLineStruct(line+2);
             countPieceLines++;
         }
@@ -379,15 +378,30 @@ void mainloop_sockline(char* line){
         if (startsWith(line, "+ PIECESLIST")) {
             countPieceLines = 0;
         } else if (strcmp(line, "+ ENDPIECESLIST") == 0) {
+            pGeneralInfo->sizeMoveShmem = countPieceLines; // der Allgemeinheit halber, ist aber in Bashni immer 32
             pGeneralInfo->newMoveInfoAvailable = true;
         } else if (strcmp(line, "+ QUIT") == 0) {
-            printf("Das Spiel ist vorbei. Schleife sollte sich jetzt beenden.\n");
+            printf("Das Spiel ist vorbei. Der Connector beendet sich jetzt.\n");
             mainloop_cleanup();
             exit(EXIT_SUCCESS);
         } else if (startsWith(line, "+ PLAYER")) { // erwartet '+ PLAYERXWON Yes/No'
-            printf("%s\n", line); // das kann mach noch sauber machen
+            unsigned int pnum;
+            char hasWon[4]; // 4, um "Yes" und Nullbyte aufnehmen zu können
+            memset(hasWon, 0, 4);
+
+            if (sscanf(line+8, "%d %*s %s", &pnum, hasWon) != 2) {
+                fprintf(stderr, "Fehler beim Interpretieren der Informationen, welcher Spieler gewonnen hat.\n");
+                mainloop_cleanup();
+                exit(EXIT_SUCCESS);
+            }
+            if (pnum >= pGeneralInfo->numberOfPlayers) {
+                fprintf(stderr, "Fehler! Informationen zu einem Spieler Nr. %d erhalten, aber es gibt nur %d Spieler.\n", pnum, pGeneralInfo->numberOfPlayers);
+                mainloop_cleanup();
+                exit(EXIT_SUCCESS);
+            }
+            printf("%s (Spieler %d) hat %s.\n", getPlayerFromNumber(pnum)->playerName, pnum, (strcmp(hasWon, "Yes") == 0) ? "gewonnen" : "verloren");
         } else { // d.h. diese Zeile ist ein Spielstein
-            printf("Spielstein (in Gameover): %s\n", line+2);
+            // printf("Spielstein (in Gameover): %s\n", line+2);
             pMoves[countPieceLines] = createLineStruct(line+2);
             countPieceLines++;
         }

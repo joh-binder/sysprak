@@ -243,34 +243,48 @@ int main(int argc, char *argv[]) {
 
         char moveString[MOVE_BUFFER] = "";
 
-    	while(true){
-    		if (sigFlagMoves && pGeneralInfo->newMoveInfoAvailable){
-    			pGeneralInfo->newMoveInfoAvailable = false;
-    			sigFlagMoves = false;
+        while(pGeneralInfo->isActive){
+            if (sigFlagMoves && pGeneralInfo->newMoveInfoAvailable) {
+                pGeneralInfo->newMoveInfoAvailable = false;
+                sigFlagMoves = false;
 
-    			resetTallocCounter();
-    			resetBoard();
-    			memset(moveString, 0, strlen(moveString));
+                resetTallocCounter();
+                resetBoard();
+                memset(moveString, 0, strlen(moveString));
 
-    			for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
-    			    if (addToSquare(codeToCoord(pMoveInfo[i].line+2), pMoveInfo[i].line[0]) != 0) {
-    				cleanupMain();
-    				return EXIT_FAILURE;
-    			    }
-    			}
+                for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
+                    if (addToSquare(codeToCoord(pMoveInfo[i].line + 2), pMoveInfo[i].line[0]) != 0) {
+                        cleanupMain();
+                        return EXIT_FAILURE;
+                    }
+                }
 
-    			printFull();
+                printf("\n============NEUE RUNDE============\n");
+                printFull();
 
-			    think(moveString);
-			    printf("Der beste Zug ist: %s\n", moveString);
-			    write(fd[1],moveString,strlen(moveString));
+                think(moveString);
+                printf("Der beste Zug ist: %s\n", moveString);
+                write(fd[1], moveString, strlen(moveString));
+            } else if (sigFlagMoves) { // wenn nur sigFlagMoves, ohne dass es neue Infos gibt (d.h. wenn einfach so ein SIGUSR1 gekommen ist)
+                sigFlagMoves = false; // Flag zurücksetzen und wieder auf Signal warten
+            }
+            pause();
+        }
 
-		    } else if (!(pGeneralInfo->isActive)) {
-			printf("Ich breche jetzt aus der Schleife\n");
-		    break;
-		    }
-		    pause();
-	    }
+        printf("Das Spiel ist vorbei. Die letzte Stellung war:\n");
+
+        resetTallocCounter();
+        resetBoard();
+        printf("\n============LETZTE STELLUNG============\n");
+        for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
+            if (addToSquare(codeToCoord(pMoveInfo[i].line + 2), pMoveInfo[i].line[0]) != 0) {
+                cleanupMain();
+                return EXIT_FAILURE;
+            }
+        }
+        printFull();
+
+        printf("Der Thinker beendet sich jetzt.\n");
 
         // Aufräumarbeiten
         if (cleanupMain() != 0) fprintf(stderr, "Fehler beim Aufräumen\n");
