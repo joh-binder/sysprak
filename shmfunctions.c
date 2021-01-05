@@ -16,6 +16,8 @@ static unsigned int sizeOfMoveShmallocBlock;
 // erzeugt ein neues struct gameInfo und initialisiert es mit Standardwerten
 struct gameInfo createGameInfoStruct(void) {
     struct gameInfo ret;
+    memset(ret.gameKindName, 0, MAX_LENGTH_NAMES);
+    memset(ret.gameName, 0, MAX_LENGTH_NAMES);
     ret.numberOfPlayers = 0;
     ret.ownPlayerNumber = -1;
     ret.pidConnector = 0;
@@ -38,6 +40,7 @@ struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready) {
 /* Nimmt einen String als Parameter und kapselt ihn (bzw. max. MOVE_LINE_BUFFER-1 Zeichen davon) in einem struct line. */
 struct line createLineStruct(char *content) {
     struct line ret;
+    memset(ret.line, 0, MOVE_LINE_BUFFER);
     strncpy(ret.line, content, MOVE_LINE_BUFFER-1);
     return ret;
 }

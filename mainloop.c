@@ -49,6 +49,12 @@ struct line *pTempMemoryForPieces = NULL;
 
 static bool moveShmExists = false;
 
+static char gamekindserver[MAX_LEN];
+static char gamename[MAX_LEN];
+static char playerName[MAX_LEN];
+static int totalplayer;
+static int ownPlayerNumber;
+
 void mainloop_cleanup(void) {
     pGeneralInfo->isActive = false;
     close(sockfiled);
@@ -104,11 +110,8 @@ void mainloop_sockline(char* line){
     char buffer[MAX_LEN];
     int bytessend;
 
-    char gamekindserver[MAX_LEN];
-    char gamename[MAX_LEN];
-    char playerName[MAX_LEN];
-    int totalplayer, ownPlayerNumber;
-
+    // Variablen, die hier standen, sind jetzt ganz oben statisch deklariert
+    // valgrind ist nämlich glücklicher, wenn die initialisiert werden, und bei statischen Variablen passiert das von selbst
 
     strcpy(buffer,"");
 
@@ -234,8 +237,6 @@ void mainloop_sockline(char* line){
 
     //Erwartet: + <<Mitspielernummer>> <<Mitspielername>> <<Bereit>>
     } else if(counter == 6){
-        printf("Zustand 6: %s\n", line + 2); // nur zur Kontrolle
-
         if (strcmp(line, "+ ENDPLAYERS") != 0) {
 
             countOpponents++;
@@ -375,6 +376,7 @@ void mainloop_sockline(char* line){
             countPieceLines++;
         }
     } else if (counter == 10) { // Zustand nach Gameover
+        printf("Ich bin im Gameover-Fall\n");
         if (startsWith(line, "+ PIECESLIST")) {
             countPieceLines = 0;
         } else if (strcmp(line, "+ ENDPIECESLIST") == 0) {
