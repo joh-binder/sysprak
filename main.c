@@ -229,6 +229,11 @@ int main(int argc, char *argv[]) {
 
         // Shared-Memory für die Spielzüge aufrufen
         shmidMoveInfo = accessExistingMoveShmem();
+        if (shmidMoveInfo == -1) {
+            fprintf(stderr, "Fehler beim Zugriff im Thinker auf das Shared Memory für die Spielzüge.\n");
+            cleanupMain();
+            return EXIT_FAILURE;
+        }
         struct line *pMoveInfo = shmAttach(shmidMoveInfo);
 
         // genug Speicherplatz für alle Spielsteine freigeben
@@ -259,7 +264,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-                printf("\n============NEUE RUNDE============\n");
+                printf("\n=========NEUE RUNDE=========\n");
                 printFull();
 
                 think(moveString);
@@ -275,7 +280,7 @@ int main(int argc, char *argv[]) {
 
         resetTallocCounter();
         resetBoard();
-        printf("\n============LETZTE STELLUNG============\n");
+        printf("\n=========LETZTE STELLUNG=========\n");
         for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
             if (addToSquare(codeToCoord(pMoveInfo[i].line + 2), pMoveInfo[i].line[0]) != 0) {
                 cleanupMain();

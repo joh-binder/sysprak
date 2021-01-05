@@ -48,6 +48,7 @@ int countPieceLines = 0;
 struct line *pTempMemoryForPieces = NULL;
 
 static bool moveShmExists = false;
+static int prevState; // Rücksprungzustand nach dem Einlesen von Steinen
 
 static char gamekindserver[MAX_LEN];
 static char gamename[MAX_LEN];
@@ -291,50 +292,36 @@ void mainloop_sockline(char* line){
     } else if (counter == 7) { // entspricht "normalem" Zustand nach dem Prolog
 
         if (startsWith(line, "+ WAIT")) {
+            // Antwort "OKWAIT" zurückschicken
             sprintf(buffer, "OKWAIT\n");
             bytessend = write(sockfiled, buffer, strlen(buffer));
             printf("Ich habe das WAIT beantwortet.\n"); // nur für mich zur Kontrolle, kann weg
         } else if (startsWith(line, "+ MOVE"))  {
-            if (!moveShmExists) {
-                counter = 8;
-            } else {
-                counter = 9;
-            }
+            counter = 8; // weiter in Zustand 8
         } else if (strcmp(line, "+ GAMEOVER") == 0) {
-            counter = 10;
+            counter = 10; // weiter in Zustand 10
         } else {
             fprintf(stderr, "Fehler! Nicht interpretierbare Zeile erhalten: %s\n", line);
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
 
-    } else if (counter == 8) { // d.h. Zustand beim ersten Mal Move
+    } else if (counter == 8) { // d.h. Zustand bei Move
         if (startsWith(line, "+ PIECESLIST")) {
-            pTempMemoryForPieces = malloc(sizeof(struct line));
-            if (pTempMemoryForPieces == NULL) {
-                fprintf(stderr, "Fehler bei Malloc für die Spielsteine in Runde 1.\n");
-                mainloop_cleanup();
-                exit(EXIT_FAILURE);
+            countPieceLines = 0; // auf jeden Fall Zähler für Spielsteine zurücksetzen
+            if (!moveShmExists) { // wenn es noch kein Move-Shmemory gibt
+                pTempMemoryForPieces = malloc(sizeof(struct line)); // Zwischenspeicher für Steine allozieren lassen
+                if (pTempMemoryForPieces == NULL) {
+                    fprintf(stderr, "Fehler bei Malloc für die Spielsteine in Runde 1.\n");
+                    mainloop_cleanup();
+                    exit(EXIT_FAILURE);
+                }
+                prevState = 8;
+                counter = 20; // weiter in Zustand 20 (d.h. Steine lesen und zwischenspeichern)
+            } else { // wenn es bereits Move-Shmemory gibt
+                prevState = 8;
+                counter = 21; // weiter in Zustand 21 (d.h. Steine normal lesen und in Shmemory speichern)
             }
-        } else if (strcmp(line, "+ ENDPIECESLIST") == 0) {
-            pGeneralInfo->sizeMoveShmem = countPieceLines; // Anzahl der Spielsteininfos im Shmemory aktualisieren
-
-            // erzeugt einen Shared-Memory-Bereich in passender Größe für alle Spielsteine (als struct line)
-            int shmidMoveInfo = createShmemoryForMoves(countPieceLines);
-            pMoves = shmAttach(shmidMoveInfo);
-            moveShmExists = true;
-
-            // überträgt alle Spielsteininfos vom gemallocten Zwischenspeicher in das neue Shmemory
-            for (int i = 0; i < countPieceLines; i++) {
-                pMoves[i] = createLineStruct(pTempMemoryForPieces[i].line);
-            }
-
-            pGeneralInfo->newMoveInfoAvailable = true;
-            free(pTempMemoryForPieces);
-            pTempMemoryForPieces = NULL;
-
-            sprintf(buffer, "THINKING\n");
-            bytessend = write(sockfiled, buffer, strlen(buffer));
         } else if (strcmp(line, "+ OKTHINK") == 0) {
             // Signal an Thinker schicken
 	        if (kill(pGeneralInfo->pidThinker, SIGUSR1) != 0) {
@@ -345,43 +332,27 @@ void mainloop_sockline(char* line){
         } else if (strcmp(line, "+ MOVEOK") == 0) {
             printf("Spielzug wurde akzeptiert\n");
             counter = 7; // d.h. zurück in den Normalzutand
-        } else { // d.h. diese Zeile ist ein Spielstein
-            // printf("Spielstein (in Move, erste Runde): %s\n", line+2);
-            pTempMemoryForPieces = (struct line *)realloc(pTempMemoryForPieces, (countPieceLines+1) * sizeof(struct line)); // Platz für ein struct line mehr von realloc holen
-            pTempMemoryForPieces[countPieceLines] = createLineStruct(line+2); // den empfangenen String in den gereallocten Speicher schreiben
-            countPieceLines++;
-        }
-
-    } else if (counter == 9) { // d.h. Zustand bei Move, nachdem Move-Shmemory schon existiert
-        if (startsWith(line, "+ PIECESLIST")) {
-            countPieceLines = 0;
-        } else if (strcmp(line, "+ ENDPIECESLIST") == 0) {
-            pGeneralInfo->sizeMoveShmem = countPieceLines; // der Allgemeinheit halber, ist aber in Bashni immer 32
-            pGeneralInfo->newMoveInfoAvailable = true;
-            sprintf(buffer, "THINKING\n");
-            bytessend = write(sockfiled, buffer, strlen(buffer));
-        } else if (strcmp(line, "+ OKTHINK") == 0) {
-            // Signal an Thinker schicken
-            if (kill(pGeneralInfo->pidThinker, SIGUSR1) != 0) {
-                fprintf(stderr, "Fehler beim Senden des Signals in normaler Runde.\n");
-                mainloop_cleanup();
-                exit(EXIT_FAILURE);
-            }
-        } else if (strcmp(line, "+ MOVEOK") == 0) {
-            printf("Spielzug wurde akzeptiert\n");
-            counter = 7; // d.h. zurück in den Normalzutand
-        } else { // d.h. diese Zeile ist ein Spielstein
-            // printf("Spielstein (in Move normal): %s\n", line+2);
-            pMoves[countPieceLines] = createLineStruct(line+2);
-            countPieceLines++;
+        } else {
+            fprintf(stderr, "Fehler! Unvorhergesehene Nachricht in Zustand Nr. %d: %s\n", counter, line);
+            mainloop_cleanup();
+            exit(EXIT_FAILURE);
         }
     } else if (counter == 10) { // Zustand nach Gameover
-        printf("Ich bin im Gameover-Fall\n");
         if (startsWith(line, "+ PIECESLIST")) {
-            countPieceLines = 0;
-        } else if (strcmp(line, "+ ENDPIECESLIST") == 0) {
-            pGeneralInfo->sizeMoveShmem = countPieceLines; // der Allgemeinheit halber, ist aber in Bashni immer 32
-            pGeneralInfo->newMoveInfoAvailable = true;
+            countPieceLines = 0; // Zähler für Spielsteine zurücksetzen
+            if (!moveShmExists) { // wenn es noch kein Move-Shmemory gibt (sofort Game Over, z.B. bei Aufruf einer Partie, die schon vorbei ist)
+                pTempMemoryForPieces = malloc(sizeof(struct line)); // Zwischenspeicher für die Steine
+                if (pTempMemoryForPieces == NULL) {
+                    fprintf(stderr, "Fehler bei Malloc für die Spielsteine in Runde 1.\n");
+                    mainloop_cleanup();
+                    exit(EXIT_FAILURE);
+                }
+                prevState = 10;
+                counter = 20; // weiter in Zustand 20 (d.h. Steine lesen und zwischenspeichern)
+            } else {
+                prevState = 10;
+                counter = 21; // weiter in Zustand 21 (d.h. Steine normal lesen und in Shmemory speichern)
+            }
         } else if (strcmp(line, "+ QUIT") == 0) {
             printf("Das Spiel ist vorbei. Der Connector beendet sich jetzt.\n");
             mainloop_cleanup();
@@ -402,8 +373,54 @@ void mainloop_sockline(char* line){
                 exit(EXIT_SUCCESS);
             }
             printf("%s (Spieler %d) hat %s.\n", getPlayerFromNumber(pnum)->playerName, pnum, (strcmp(hasWon, "Yes") == 0) ? "gewonnen" : "verloren");
+        } else {
+            fprintf(stderr, "Fehler! Unvorhergesehene Nachricht in Zustand Nr. %d: %s\n", counter, line);
+            mainloop_cleanup();
+            exit(EXIT_FAILURE);
+        }
+    } else if (counter == 20) { // Zustand, in dem zum ersten Mal Steine eingelesen werden --> in Zwischenspeicher, danach in Shmem umschreiben
+        if (strcmp(line, "+ ENDPIECESLIST") == 0) {
+            pGeneralInfo->sizeMoveShmem = countPieceLines; // Anzahl der Spielsteininfos im Shmemory aktualisieren
+
+            // erzeugt einen Shared-Memory-Bereich in passender Größe für alle Spielsteine (als struct line)
+            int shmidMoveInfo = createShmemoryForMoves(countPieceLines);
+            pMoves = shmAttach(shmidMoveInfo);
+            moveShmExists = true;
+
+            // überträgt alle Spielsteininfos vom gemallocten Zwischenspeicher in das neue Shmemory
+            for (int i = 0; i < countPieceLines; i++) {
+                pMoves[i] = createLineStruct(pTempMemoryForPieces[i].line);
+            }
+
+            pGeneralInfo->newMoveInfoAvailable = true;
+            free(pTempMemoryForPieces);
+            pTempMemoryForPieces = NULL;
+
+            if (prevState != 10) { // bei Game Over wollen wir kein "THINKING" zurückschreiben
+                sprintf(buffer, "THINKING\n");
+                bytessend = write(sockfiled, buffer, strlen(buffer));
+            }
+
+            counter = prevState; // zurück zu Move (8) oder Game Over (10)
         } else { // d.h. diese Zeile ist ein Spielstein
-            // printf("Spielstein (in Gameover): %s\n", line+2);
+            // printf("Spielstein (erste Runde): %s\n", line+2);
+            pTempMemoryForPieces = (struct line *)realloc(pTempMemoryForPieces, (countPieceLines+1) * sizeof(struct line)); // Platz für ein struct line mehr von realloc holen
+            pTempMemoryForPieces[countPieceLines] = createLineStruct(line+2); // den empfangenen String in den gereallocten Speicher schreiben
+            countPieceLines++;
+        }
+    } else if (counter == 21) { // Zustand, in dem Steine eingelesen und direkt im Shmemory gespeichert werden
+        if (strcmp(line, "+ ENDPIECESLIST") == 0) {
+            pGeneralInfo->sizeMoveShmem = countPieceLines; // der Allgemeinheit halber, ist aber in Bashni immer 32
+            pGeneralInfo->newMoveInfoAvailable = true;
+
+            if (prevState != 10) { // bei Game Over wollen wir kein "THINKING" zurückschreiben
+                sprintf(buffer, "THINKING\n");
+                bytessend = write(sockfiled, buffer, strlen(buffer));
+            }
+
+            counter = prevState; // zurück zu Move (8) oder Game Over (10)
+        } else { // d.h. diese Zeile ist ein Spielstein
+            // printf("Spielstein (normal): %s\n", line+2);
             pMoves[countPieceLines] = createLineStruct(line+2);
             countPieceLines++;
         }

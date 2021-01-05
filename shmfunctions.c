@@ -127,7 +127,7 @@ int shmCreate(int shmDataSize) {
 int accessExistingMoveShmem(void) {
     int shmid = shmget(ftok("main.c", KEY_FOR_MOVE_SHMEM), sizeOfMoveShmallocBlock, IPC_EXCL | SHM_R | SHM_W);
     if (shmid < 0) {
-        perror("Fehler bei Shared-Memory-Erstellung");
+        printf("Shared-Memory für Spielzüge existiert noch nicht.\n");
     }
     return shmid;
 }
