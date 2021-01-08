@@ -268,7 +268,7 @@ int main(int argc, char *argv[]) {
                 printFull();
 
                 think(moveString);
-                printf("Der beste Zug ist: %s\n", moveString);
+                printf("\nDer beste Zug ist: %s\n", moveString);
                 write(fd[1], moveString, strlen(moveString));
             } else if (sigFlagMoves) { // wenn nur sigFlagMoves, ohne dass es neue Infos gibt (d.h. wenn einfach so ein SIGUSR1 gekommen ist)
                 sigFlagMoves = false; // Flag zurücksetzen und wieder auf Signal warten
