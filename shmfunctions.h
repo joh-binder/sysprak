@@ -2,7 +2,6 @@
 #define SYSPRAK_SHMFUNCTIONS_H
 
 #include <stdbool.h>
-#include "thinkerfunctions.h"
 
 #define MAX_LENGTH_NAMES 256
 #define MAX_NUMBER_OF_PLAYERS_IN_SHMEM 12

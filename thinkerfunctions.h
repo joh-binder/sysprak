@@ -19,23 +19,18 @@ typedef struct moveInfo {
     float rating;
 } move;
 
-/* Wandelt einen Buchstabe-Zahl-Code in den Datentyp coordinate um.
- * Bei ungültigen Koordinaten (alles außer A-H und 1-8) sind die Koordinaten -1, -1. */
-coordinate codeToCoord(char code[2]);
-
-/* In der Main-Methode sollte ein Spielbrett (tower*) gemalloced werden. Der entstehende Pointer muss einmalig mit
- * dieser Funktion an dieses Modul übergeben werden, damit die statische Variable tower **board gesetzt werden kann,
- * die dann die meisten Funktionen im Modul benutzen. */
-void setUpBoard(tower **pBoard);
-
-/* In der Main-Methode sollte Speicher für eine bestimmte Anzahl an Türmen gemalloced werden. Der entstehende Pointer
- * sowie die Anzahl der Türme, die in den Speicher passen, müssen einmalig mit dieser Funktion an dieses Modul
- * übergeben werden, damit statische Variablen gesetzt werden können, die dann andere Funktionen benutzen wollen. */
-void setUpTowerAlloc(tower *pStart, unsigned int numTowers);
-
-/* Hiermit muss die Spielernummer an thinkerfunctions übergeben werden, damit hier bekannt ist, was die eigene Farbe
- * und was die des Gegners ist. */
-int setUpWhoIsWho(int playerno);
+/* In dieser Funktion werden die Speicherbereiche für den Thinker richtig eingerichtet. Die Funktion muss einmal
+ * aufgerufen werden, damit der Thinker einsatzbereit ist. Genauer passiert Folgendes:
+ *
+ * - Der Pointer auf das Struct mit den allgemeinen Informationen wird als Parameter übergeben und für den Thinker als
+ *   statische Variable gesetzt.
+ * - Es wird festgelegt, ob der Benutzer Spieler 0 oder Spieler 1 ist (dazu ist der Pointer Voraussetzung).
+ * - Auf das im Connector angelegte Shmemory mit den Infos zu den Spielsteinen wird zugegriffen.
+ * - Für das Spielbrett wird Speicherbereich gemalloced.
+ * - Für die Spielsteine wird Speicherbereich gemalloced.
+ *
+ * Gibt im Normalfall 0 und im Fehlerfall -1 (+ Fehlermeldung zur genaueren Lokalisierung) zurück. */
+int setUpMemoryForThinker(struct gameInfo *pG);
 
 /* Bündelt die Funktionen resetTallocCounter und resetBoard, da diese sowieso miteinander verwendet werden sollen. */
 void prepareNewRound(void);
@@ -43,11 +38,13 @@ void prepareNewRound(void);
 /* Wendet printTopPieces an und druckt zusätzlich eine Liste mit allen weißen und schwarzen Türmen.*/
 void printFull(void);
 
-/* Erzeugt einen neuen tower/Spielstein und setzt ihn auf das Spielbrett. Verlangt dazu als Parameter eine
- * Zielkoordinate und die Art des Spielsteins (als Char). */
-int addToSquare(coordinate c, char piece);
+/* Liest Spielsteine aus dem Shmemory und setzt sie auf das Spielbrett. Gibt im Fehlerfall -1 zurück, sonst 0. */
+int placePiecesOnBoard(void);
 
 /* Bestimmt den günstigen Spielzug auf Basis des aktuellen Spielbretts. Schreibt diesen in den angegebenen String. */
 void think(char *answer);
+
+// Räumt auf: gemallocten Speicher freigeben, Shmemory-Segmente löschen.
+int cleanupThinkerfunctions(void);
 
 #endif //SYSPRAK_THINKERFUNCTIONS_H

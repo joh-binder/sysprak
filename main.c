@@ -24,9 +24,6 @@
 static bool sigFlagMoves = false;
 static int shmidGeneralInfo = -1;
 static int shmidPlayerInfo = -1;
-static int shmidMoveInfo = -1;
-static tower **pBoard;
-static tower *pTowers;
 
 /* Speichert die IP-Adresse von Hostname in punktierter Darstellung in einem char Array ab.
  * Gibt -1 im Fehlerfall zurück, sonst 0. */
@@ -48,29 +45,24 @@ int hostnameToIp(char *ipA, char *hostname) {
     return 0;
 }
 
-
+/* Räumt auf: gemallocten Speicher freigeben, Shmemory-Segmente löschen.
+ * Ruft auch cleanupThinkerfunctions auf, sodass auch dort saubergemacht wird.
+ * Im Fehlerfall wird nicht sofort -1 zurückgegeben, sondern erst am Ende der Funktion, weil versucht werden soll,
+ * zumindest noch andere Stellen aufzuräumen. */
 int cleanupMain(void) {
+    int ret = 0;
+
+    if (cleanupThinkerfunctions() == -1) ret = -1;
+
     if (shmidGeneralInfo != -1) {
-        if (shmDelete(shmidGeneralInfo) > 0) return -1;
+        if (shmDelete(shmidGeneralInfo) > 0) ret = -1;
     }
 
     if (shmidPlayerInfo != -1) {
-        if (shmDelete(shmidPlayerInfo) > 0) return -1;
+        if (shmDelete(shmidPlayerInfo) > 0) ret = -1;
     }
 
-    if (shmidMoveInfo != -1) {
-        if (shmDelete(shmidMoveInfo) > 0) return -1;
-    }
-
-    if (pBoard != NULL) {
-        free(pBoard);
-    }
-
-    if (pTowers != NULL) {
-        free(pTowers);
-    }
-
-    return 0;
+    return ret;
 }
 
 // signal handler Ctrl-C
@@ -216,32 +208,16 @@ int main(int argc, char *argv[]) {
     	    return EXIT_FAILURE;
     	}
 
-        // alloziert Speicherplatz für das Spielbrett
-        pBoard = malloc(sizeof(tower *) * 64);
-        setUpBoard(pBoard);
-
         pause();
 
+        // nur zu Testzwecken, kann weg
         printf("Ich bin im Elternprozess und versuche, aus dem Shmemory zu lesen:\n");
         printf("Allgemein: %s, %s, %d, %d\n", pGeneralInfo->gameKindName, pGeneralInfo->gameName, pGeneralInfo->numberOfPlayers, pGeneralInfo->ownPlayerNumber);
         printf("Ich:  %s, %d, %d\n", pPlayerInfo->playerName, pPlayerInfo->playerNumber, pPlayerInfo->readyOrNot);
         printf("Gegner:  %s, %d, %d\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber, (pPlayerInfo+1)->readyOrNot);
 
-        // Shared-Memory für die Spielzüge aufrufen
-        shmidMoveInfo = accessExistingMoveShmem();
-        if (shmidMoveInfo == -1) {
-            fprintf(stderr, "Fehler beim Zugriff im Thinker auf das Shared Memory für die Spielzüge.\n");
-            cleanupMain();
-            return EXIT_FAILURE;
-        }
-        struct line *pMoveInfo = shmAttach(shmidMoveInfo);
-
-        // genug Speicherplatz für alle Spielsteine freigeben
-        pTowers = malloc(sizeof(tower) * pGeneralInfo->sizeMoveShmem);
-        setUpTowerAlloc(pTowers, pGeneralInfo->sizeMoveShmem);
-
-        // thinkerfunctions.c muss wissen, ob wir Spieler 0 oder 1 sind
-        if (setUpWhoIsWho(pGeneralInfo->ownPlayerNumber) != 0) {
+        if (setUpMemoryForThinker(pGeneralInfo)) {
+            fprintf(stderr, "Fehler bei der bei der Vorbereitung der Speicherbereiche für den Thinker (genauere Infos in der Fehlermeldung eins weiter oben).\n");
             cleanupMain();
             return EXIT_FAILURE;
         }
@@ -256,11 +232,10 @@ int main(int argc, char *argv[]) {
                 prepareNewRound();
                 memset(moveString, 0, strlen(moveString));
 
-                for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
-                    if (addToSquare(codeToCoord(pMoveInfo[i].line + 2), pMoveInfo[i].line[0]) != 0) {
-                        cleanupMain();
-                        return EXIT_FAILURE;
-                    }
+                if (placePiecesOnBoard() != 0) {
+                    fprintf(stderr, "Fehler beim Setzen der Steine auf das Spielbrett während des Spiels\n");
+                    cleanupMain();
+                    return EXIT_FAILURE;
                 }
 
                 printf("\n=========NEUE RUNDE=========\n");
@@ -279,11 +254,10 @@ int main(int argc, char *argv[]) {
 
         prepareNewRound();
         printf("\n=========LETZTE STELLUNG=========\n");
-        for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
-            if (addToSquare(codeToCoord(pMoveInfo[i].line + 2), pMoveInfo[i].line[0]) != 0) {
-                cleanupMain();
-                return EXIT_FAILURE;
-            }
+        if (placePiecesOnBoard() != 0) {
+            fprintf(stderr, "Fehler beim Setzen der Steine auf das Spielbrett nach dem Game Over\n");
+            cleanupMain();
+            return EXIT_FAILURE;
         }
         printFull();
 

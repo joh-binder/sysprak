@@ -9,6 +9,7 @@
 
 #define NUMBER_OF_PIECES_IN_BASHNI 32
 #define NUM_ROWS 8 // (auch Zahl der Spalten)
+#define COORDINATE_LENGTH 2 // ein Buchstabe und eine Zahl
 
 #define QUEEN_TO_NORMAL_RATIO 3.0
 #define NORMAL_PIECE_WEIGHT 1.0
@@ -25,11 +26,15 @@
 
 static int towerAllocCounter = 0;
 static unsigned int sizeOfTowerMalloc;
-static tower *pointerToStart;
-static tower **board;
+static tower *pPieces;
+static tower **pBoard;
 
 static char ownNormalTower, ownQueenTower, opponentNormalTower, opponentQueenTower;
 static bool justConvertedToQueen = false;
+
+static int shmidMoves = -1;
+static struct gameInfo *pGeneralInfo;
+static struct line *pMoveInfo;
 
 /* Wandelt einen Buchstabe-Zahl-Code in den Datentyp coordinate um.
  * Bei ungültigen Koordinaten (alles außer A-H und 1-8) sind die Koordinaten -1, -1. */
@@ -193,21 +198,6 @@ move createMoveStruct(void) {
     return ret;
 }
 
-/* In der Main-Methode sollte ein Speicher für ein Spielbrett (64 Pointer auf tower) gemalloced werden. Der entstehende
- * Pointer muss einmalig mit dieser Funktion an dieses Modul übergeben werden, damit die statische Variable tower **board
- * gesetzt werden kann, die dann die meisten Funktionen im Modul benutzen. */
-void setUpBoard(tower **pBoard) {
-    board = pBoard;
-}
-
-/* In der Main-Methode sollte Speicher für eine bestimmte Anzahl an Türmen gemalloced werden. Der entstehende Pointer
- * sowie die Anzahl der Türme, die in den Speicher passen, müssen einmalig mit dieser Funktion an dieses Modul
- * übergeben werden, damit statische Variablen gesetzt werden können, die dann andere Funktionen benutzen wollen. */
-void setUpTowerAlloc(tower *pStart, unsigned int numTowers) {
-    sizeOfTowerMalloc = numTowers * sizeof(tower);
-    pointerToStart = pStart;
-}
-
 /* Hiermit muss die Spielernummer an thinkerfunctions übergeben werden, damit hier bekannt ist, was die eigene Farbe
  * und was die des Gegners ist. */
 int setUpWhoIsWho(int playerno) {
@@ -229,6 +219,50 @@ int setUpWhoIsWho(int playerno) {
     }
 }
 
+/* In dieser Funktion werden die Speicherbereiche für den Thinker richtig eingerichtet. Die Funktion muss einmal
+ * aufgerufen werden, damit der Thinker einsatzbereit ist. Genauer passiert Folgendes:
+ *
+ * - Der Pointer auf das Struct mit den allgemeinen Informationen wird als Parameter übergeben und für den Thinker als
+ *   statische Variable gesetzt.
+ * - Es wird festgelegt, ob der Benutzer Spieler 0 oder Spieler 1 ist (dazu ist der Pointer Voraussetzung).
+ * - Auf das im Connector angelegte Shmemory mit den Infos zu den Spielsteinen wird zugegriffen.
+ * - Für das Spielbrett wird Speicherbereich gemalloced.
+ * - Für die Spielsteine wird Speicherbereich gemalloced.
+ *
+ * Gibt im Normalfall 0 und im Fehlerfall -1 (+ Fehlermeldung zur genaueren Lokalisierung) zurück. */
+int setUpMemoryForThinker(struct gameInfo *pG) {
+    pGeneralInfo = pG;
+
+    if (setUpWhoIsWho(pGeneralInfo->ownPlayerNumber) != 0) {
+        return -1;
+    }
+
+    // Shared-Memory für die Spielzüge aufrufen
+    shmidMoves = accessExistingMoveShmem();
+    if (shmidMoves == -1) {
+        fprintf(stderr, "Fehler beim Zugriff im Thinker auf das Shared Memory für die Spielzüge.\n");
+        return -1;
+    }
+    pMoveInfo = shmAttach(shmidMoves);
+
+    // genug Speicherplatz für das Spielbrett freigeben
+    pBoard = malloc(sizeof(tower *) * NUM_ROWS * NUM_ROWS);
+    if (pBoard == NULL) {
+        fprintf(stderr, "Fehler beim Anfordern von Speicherplatz für das Spielbrett.\n");
+        return -1;
+    }
+
+    // genug Speicherplatz für alle Spielsteine freigeben
+    sizeOfTowerMalloc = pGeneralInfo->sizeMoveShmem * sizeof(tower);
+    pPieces = malloc(sizeOfTowerMalloc);
+    if (pPieces == NULL) {
+        fprintf(stderr, "Fehler beim Anfordern von Speicherplatz für die Spielsteine.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 /* Setzt voraus, dass ein Speicherblock für Türme reserviert ist. Gibt einen Pointer auf einen Abschnitt des
  * Speicherblocks zurück, der genau groß genug für einen tower ist. Intern wird ein Zähler
  * versetzt, sodass der nächste Funktionsaufruf einen anderen Abschnitt liefert. */
@@ -238,7 +272,7 @@ tower *towerAlloc(void) {
         printf("towerAllocCounter ist gerade: %d\n", towerAllocCounter);
         return (tower *)NULL;
     } else {
-        tower *pTemp = pointerToStart + towerAllocCounter;
+        tower *pTemp = pPieces + towerAllocCounter;
         towerAllocCounter += 1;
         return pTemp;
     }
@@ -252,8 +286,8 @@ void resetTallocCounter(void) {
 
 /* Setzt alle Pointer des Spielbretts auf NULL zurück. */
 void resetBoard(void) {
-    for (int i = 0; i < 64; i++) {
-        board[i] = NULL;
+    for (int i = 0; i < NUM_ROWS * NUM_ROWS; i++) {
+        pBoard[i] = NULL;
     }
 }
 
@@ -269,7 +303,7 @@ tower *getPointerToSquare(coordinate c) {
         fprintf(stderr, "Fehler! Ungültige Koordinate.\n");
         return NULL;
     } else {
-        return board[NUM_ROWS * c.yCoord + c.xCoord];
+        return pBoard[NUM_ROWS * c.yCoord + c.xCoord];
     }
 }
 
@@ -335,7 +369,7 @@ void printFull(void) {
             char topPiece = getTopPiece(numsToCoord(i, j));
             if (topPiece == 'w' || topPiece == 'W') {
                 char towerBuffer[NUMBER_OF_PIECES_IN_BASHNI+1];
-                char coordinateBuffer[3];
+                char coordinateBuffer[COORDINATE_LENGTH+1];
                 towerToString(towerBuffer, numsToCoord(i, j));
                 coordToCode(coordinateBuffer, numsToCoord(i, j));
                 printf("%s: %s\n", coordinateBuffer, towerBuffer);
@@ -350,7 +384,7 @@ void printFull(void) {
             char topPiece = getTopPiece(numsToCoord(j, i));
             if (topPiece == 'b' || topPiece == 'B') {
                 char towerBuffer[NUMBER_OF_PIECES_IN_BASHNI+1];
-                char coordinateBuffer[3];
+                char coordinateBuffer[COORDINATE_LENGTH+1];
                 towerToString(towerBuffer, numsToCoord(j, i));
                 coordToCode(coordinateBuffer, numsToCoord(j, i));
                 printf("%s: %s\n", coordinateBuffer, towerBuffer);
@@ -372,9 +406,19 @@ int addToSquare(coordinate c, char piece) {
 
         pNewTower->piece = piece;
         pNewTower->next = getPointerToSquare(c);
-        board[NUM_ROWS * c.yCoord + c.xCoord] = pNewTower;
+        pBoard[NUM_ROWS * c.yCoord + c.xCoord] = pNewTower;
         return 0;
     }
+}
+
+/* Liest Spielsteine aus dem Shmemory und setzt sie auf das Spielbrett. Gibt im Fehlerfall -1 zurück, sonst 0. */
+int placePiecesOnBoard(void) {
+    for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
+        if (addToSquare(codeToCoord(pMoveInfo[i].line + 2), pMoveInfo[i].line[0]) != 0) {
+            return -1;
+        }
+    }
+    return 0;
 }
 
 /* Gegeben eine Ursprungs- und eine Zielkoordinate, überprüft ob es erlaubt wäre, den Turm so zu bewegen. Wenn ja,
@@ -423,8 +467,8 @@ int checkMove(coordinate origin, coordinate target) {
  * deren Regelkonformität vorher mit checkMove geprüft wurden. */
 void moveTower(coordinate origin, coordinate target) {
     // Spielsteine umsetzen
-    board[NUM_ROWS * target.yCoord + target.xCoord] = getPointerToSquare(origin);
-    board[NUM_ROWS * origin.yCoord + origin.xCoord] = NULL;
+    pBoard[NUM_ROWS * target.yCoord + target.xCoord] = getPointerToSquare(origin);
+    pBoard[NUM_ROWS * origin.yCoord + origin.xCoord] = NULL;
 
     // evtl. Verwandlung in Dame
     if (getTopPiece(target) == 'w' && target.yCoord == NUM_ROWS-1) {
@@ -562,7 +606,7 @@ bool isInDanger(coordinate square) {
     return false;
 }
 
-/* Zählt, wie viele Türme der eigenen Farbe sich nach Stand des momentanen Spielbretts in Gefahr befinden. Eine Dame zählt 3-fach. */
+/* Zählt, wie viele Türme der eigenen Farbe sich nach Stand des momentanen Spielbretts in Gefahr befinden. Eine Dame zählt mehrfach. */
 int howManyInDangerOwn(void) {
     int countTotalInDanger = 0;
 
@@ -617,9 +661,9 @@ void captureTower(coordinate origin, coordinate target) {
     pCurrent->next = getPointerToSquare(victim);
     pCurrent->next->next = NULL;
 
-    board[NUM_ROWS * victim.yCoord + victim.xCoord] = pNewVictimTower;
-    board[NUM_ROWS * target.yCoord + target.xCoord] = pTowerForTarget;
-    board[NUM_ROWS * origin.yCoord + origin.xCoord] = NULL;
+    pBoard[NUM_ROWS * victim.yCoord + victim.xCoord] = pNewVictimTower;
+    pBoard[NUM_ROWS * target.yCoord + target.xCoord] = pTowerForTarget;
+    pBoard[NUM_ROWS * origin.yCoord + origin.xCoord] = NULL;
 
     // evtl. Verwandlung in Dame
     if (getTopPiece(target) == 'w' && target.yCoord == NUM_ROWS-1) {
@@ -663,10 +707,10 @@ void undoCaptureTower(coordinate origin, coordinate target) {
     pCurrent->next = NULL;
 
     pBottomPieceOfTarget->next = getPointerToSquare(victim);
-    board[NUM_ROWS * victim.yCoord+victim.xCoord] = pBottomPieceOfTarget;
+    pBoard[NUM_ROWS * victim.yCoord+victim.xCoord] = pBottomPieceOfTarget;
 
-    board[NUM_ROWS * origin.yCoord+origin.xCoord] = getPointerToSquare(target);
-    board[NUM_ROWS * target.yCoord+target.xCoord] = NULL;
+    pBoard[NUM_ROWS * origin.yCoord+origin.xCoord] = getPointerToSquare(target);
+    pBoard[NUM_ROWS * target.yCoord+target.xCoord] = NULL;
 }
 
 float computeTowerWeight(coordinate square) {
@@ -707,18 +751,23 @@ float evaluateMove(coordinate origin, coordinate target) {
 
     int piecesInDangerOwnAfter = howManyInDangerOwn();
     int dangerDifferenceOwn = piecesInDangerOwnAfter - piecesInDangerOwnPrev;
-    if (dangerDifferenceOwn > 0) printf("  Mit diesem Zug bringe ich einen meiner Spielsteine in Gefahr...\n");
-    else if (dangerDifferenceOwn < 0) printf("  Mit diesem Zug bringe ich einen eigenen gefährdeten Spielstein in Sicherheit.\n");
+    if (dangerDifferenceOwn > 0) printf(" * Mit diesem Zug bringe ich einen meiner Spielsteine in Gefahr...\n");
+    else if (dangerDifferenceOwn < 0) printf(" * Mit diesem Zug bringe ich einen eigenen gefährdeten Spielstein in Sicherheit.\n");
     rating -= OWN_ENDANGERMENT_FACTOR * dangerDifferenceOwn;
 
     int piecesInDangerOppAfter = howManyInDangerOpponent();
     int dangerDifferenceOpp = piecesInDangerOppAfter - piecesInDangerOppPrev;
-    if (dangerDifferenceOpp > 0) printf("  Mit diesem Zug bedrohe ich einen gegnerischen Spielstein...\n");
-    else if (dangerDifferenceOpp < 0) printf("  Mit diesem Zug höre ich auf, einen gegnerischen Spielstein zu bedrohen.\n");
-    rating += THREATEN_OPPONENT_FACTOR * dangerDifferenceOpp;
+    if (dangerDifferenceOpp > 0) {
+        printf(" * Mit diesem Zug bedrohe ich einen gegnerischen Spielstein.\n");
+        rating += THREATEN_OPPONENT_FACTOR * dangerDifferenceOpp;
+    }
+//    else if (dangerDifferenceOpp < 0) {
+//        printf(" * Mit diesem Zug höre ich auf, einen gegnerischen Spielstein zu bedrohen.\n");
+//        rating += THREATEN_OPPONENT_FACTOR * dangerDifferenceOpp;
+//    }
 
     if (justConvertedToQueen) {
-        printf("  Mit diesem Zug kann ich eine Damenumwandlung durchführen!\n");
+        printf(" * Mit diesem Zug kann ich eine Damenumwandlung durchführen!\n");
         rating += CONVERT_TO_QUEEN_BONUS;
     }
 
@@ -731,8 +780,8 @@ float evaluateMove(coordinate origin, coordinate target) {
  * (Im Moment nur als Kommandozeilenausgabe) */
 move tryAllMoves(coordinate origin) {
 
-    char strOrigin[3];
-    char strTarget[3];
+    char strOrigin[COORDINATE_LENGTH+1];
+    char strTarget[COORDINATE_LENGTH+1];
     int newX, newY;
     coordToCode(strOrigin, origin);
 
@@ -842,16 +891,16 @@ float evaluateCapture(coordinate origin, coordinate target, bool verbose) {
     float rating = POSSIBLE_MOVE_BASE_RATING;
 
     int ownWeight = computeTowerWeight(origin);
-    if (verbose && ownWeight < 0) printf("  Der Turm, mit dem ich schlagen will, ist ziemlich schwach. Damit anzugreifen ist vielleicht nicht so gut.\n");
+    if (verbose && ownWeight < 0) printf(" * Der Turm, mit dem ich schlagen will, ist ziemlich schwach. Damit anzugreifen ist vielleicht nicht so gut.\n");
     rating += WEIGHT_RATING_FACTOR * ownWeight;
 
     coordinate victim = computeVictim(origin, target);
     int victimWeight = computeTowerWeight(victim);
-    if (verbose && victimWeight > 0) printf("  Der gegnerische Turm ist ziemlich stark. Vielleicht sollte ich lieber einen anderen angreifen.\n");
+    if (verbose && victimWeight > 0) printf(" * Der gegnerische Turm ist ziemlich stark. Vielleicht sollte ich lieber einen anderen angreifen.\n");
     rating -= WEIGHT_RATING_FACTOR * victimWeight;
 
     if (getTopPiece(victim) == opponentQueenTower) {
-        if (verbose) printf("  Mit diesem Zug schlage ich eine gegnerische Dame!\n");
+        if (verbose) printf(" * Mit diesem Zug schlage ich eine gegnerische Dame!\n");
         rating += CAPTURE_QUEEN_BONUS;
     }
 
@@ -862,16 +911,16 @@ float evaluateCapture(coordinate origin, coordinate target, bool verbose) {
 
     move potentialNextMove = tryCaptureAgain(origin, target, false);
     if (potentialNextMove.origin.xCoord != potentialNextMove.target.xCoord || potentialNextMove.origin.yCoord != potentialNextMove.target.yCoord) {
-        if (verbose) printf("  Dieser Schlag ist gut, weil ich danach noch weiterschlagen kann.\n");
+        if (verbose) printf(" * Dieser Schlag ist gut, weil ich danach noch weiterschlagen kann.\n");
         rating += ANOTHER_CAPTURE_POSSIBLE_BONUS;
     } else {
         int piecesInDangerOwnAfter = howManyInDangerOwn();
         int dangerDifferenceOwn = piecesInDangerOwnAfter - piecesInDangerOwnPrev;
         if (dangerDifferenceOwn > 0) {
-            if (verbose) printf("  Mit diesem Zug bringe ich einen meiner Spielsteine in Gefahr...\n");
+            if (verbose) printf(" * Mit diesem Zug bringe ich einen meiner Spielsteine in Gefahr...\n");
             rating -= OWN_ENDANGERMENT_FACTOR * dangerDifferenceOwn;
         } else if (dangerDifferenceOwn < 0) {
-            if (verbose) printf("  Mit diesem Zug bringe ich einen eigenen gefährdeten Spielstein in Sicherheit.\n");
+            if (verbose) printf(" * Mit diesem Zug bringe ich einen eigenen gefährdeten Spielstein in Sicherheit.\n");
             rating -= OWN_ENDANGERMENT_FACTOR * dangerDifferenceOwn; // da dangerDifference negativ ist, wirkt das als Bonus
         }
     }
@@ -879,17 +928,17 @@ float evaluateCapture(coordinate origin, coordinate target, bool verbose) {
     int piecesInDangerOppAfter = howManyInDangerOpponent();
     int dangerDifferenceOpp = piecesInDangerOppAfter - piecesInDangerOppPrev;
     if (dangerDifferenceOpp > 0) {
-        printf("  Mit diesem Zug bedrohe ich einen gegnerischen Spielstein...\n");
+        printf(" * Mit diesem Zug bedrohe ich einen gegnerischen Spielstein.\n");
         rating += THREATEN_OPPONENT_FACTOR * dangerDifferenceOpp;
     }
-    else if (dangerDifferenceOpp < 0) {
-        printf("  Mit diesem Zug höre ich auf, einen gegnerischen Spielstein zu bedrohen.\n");
-        rating += THREATEN_OPPONENT_FACTOR * dangerDifferenceOpp;
-    }
+//    else if (dangerDifferenceOpp < 0) {
+//        printf(" * Mit diesem Zug höre ich auf, einen gegnerischen Spielstein zu bedrohen.\n");
+//        rating += THREATEN_OPPONENT_FACTOR * dangerDifferenceOpp;
+//    }
 
 
     if (justConvertedToQueen) {
-        if (verbose) printf("  Mit diesem Schlag kann ich eine Damenumwandlung durchführen!\n");
+        if (verbose) printf(" * Mit diesem Schlag kann ich eine Damenumwandlung durchführen!\n");
         rating += CONVERT_TO_QUEEN_BONUS;
     }
 
@@ -905,8 +954,8 @@ float evaluateCapture(coordinate origin, coordinate target, bool verbose) {
  * origin- und target-Koordinaten -1 und rating -FLT_MAX zurück. */
 move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
 
-    char strOrigin[3];
-    char strTarget[3];
+    char strOrigin[COORDINATE_LENGTH+1];
+    char strTarget[COORDINATE_LENGTH+1];
     int newX, newY;
     coordToCode(strOrigin, origin);
 
@@ -1056,11 +1105,9 @@ void think(char *answer) {
     // wenn ein gültiger Schlag-Teilzug gefunden werden kann: in answer schreiben, danach in Schleife nach weiteren Teilzügen vom Zielfeld aus suchen
     if (overallBestMove.origin.xCoord != -1 && overallBestMove.origin.yCoord != -1 && overallBestMove.target.xCoord != -1 && overallBestMove.target.yCoord != -1) {
         coordToCode(answer, overallBestMove.origin);
-        answerCounter += 2;
-        answer[answerCounter] = ':';
-        answerCounter += 1;
-        coordToCode(answer + answerCounter, overallBestMove.target);
-        answerCounter += 2;
+        answer[answerCounter + COORDINATE_LENGTH] = ':';
+        coordToCode(answer + COORDINATE_LENGTH + 1, overallBestMove.target);
+        answerCounter += (COORDINATE_LENGTH + 1 + COORDINATE_LENGTH);
 
         bool moreCapturesLoop = true;
 
@@ -1079,9 +1126,8 @@ void think(char *answer) {
             } else {
                 // weiterer Schlagzug gefunden -> in answer schreiben
                 answer[answerCounter] = ':';
-                answerCounter += 1;
-                coordToCode(answer + answerCounter, overallBestMove.target);
-                answerCounter += 2;
+                coordToCode(answer + answerCounter + 1, overallBestMove.target);
+                answerCounter += (1 + COORDINATE_LENGTH);
             }
 
         }
@@ -1101,12 +1147,28 @@ void think(char *answer) {
         }
 
         coordToCode(answer, overallBestMove.origin);
-        answerCounter += 2;
-        answer[answerCounter] = ':';
-        answerCounter += 1;
-        coordToCode(answer + answerCounter, overallBestMove.target);
-        answerCounter += 2;
+        answer[answerCounter + COORDINATE_LENGTH] = ':';
+        coordToCode(answer + COORDINATE_LENGTH + 1, overallBestMove.target);
+        answerCounter += (COORDINATE_LENGTH + 1 + COORDINATE_LENGTH);
     }
 
     answer[answerCounter] = '\n'; // answer braucht am Ende ein Newline, sonst wird die Nachricht in mainloop_filehandler liegengelassen
+}
+// Räumt auf: gemallocten Speicher freigeben, Shmemory-Segmente löschen.
+int cleanupThinkerfunctions(void) {
+    int ret = 0;
+
+    if (shmidMoves != -1) {
+        if (shmDelete(shmidMoves) > 0) ret = -1;
+    }
+
+    if (pBoard != NULL) {
+        free(pBoard);
+    }
+
+    if (pPieces != NULL) {
+        free(pPieces);
+    }
+
+    return ret;
 }
