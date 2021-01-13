@@ -1,6 +1,8 @@
 #ifndef SYSPRAK_THINKERFUNCTIONS_H
 #define SYSPRAK_THINKERFUNCTIONS_H
 
+#include "shmfunctions.h"
+
 typedef struct coord {
     int xCoord;
     int yCoord;
@@ -31,14 +33,12 @@ void setUpBoard(tower **pBoard);
  * übergeben werden, damit statische Variablen gesetzt werden können, die dann andere Funktionen benutzen wollen. */
 void setUpTowerAlloc(tower *pStart, unsigned int numTowers);
 
+/* Hiermit muss die Spielernummer an thinkerfunctions übergeben werden, damit hier bekannt ist, was die eigene Farbe
+ * und was die des Gegners ist. */
 int setUpWhoIsWho(int playerno);
 
-/* Setzt den Zähler, den towerAlloc verwendet wieder zurück. Zu verwenden, wenn (in einer neuen Iteration) wieder
- * alle Türme auf das Spielbrett gesetzt werden sollen. */
-void resetTallocCounter(void);
-
-/* Setzt alle Pointer des Spielbretts auf NULL zurück. */
-void resetBoard(void);
+/* Bündelt die Funktionen resetTallocCounter und resetBoard, da diese sowieso miteinander verwendet werden sollen. */
+void prepareNewRound(void);
 
 /* Wendet printTopPieces an und druckt zusätzlich eine Liste mit allen weißen und schwarzen Türmen.*/
 void printFull(void);

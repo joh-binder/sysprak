@@ -253,8 +253,7 @@ int main(int argc, char *argv[]) {
                 pGeneralInfo->newMoveInfoAvailable = false;
                 sigFlagMoves = false;
 
-                resetTallocCounter();
-                resetBoard();
+                prepareNewRound();
                 memset(moveString, 0, strlen(moveString));
 
                 for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
@@ -278,8 +277,7 @@ int main(int argc, char *argv[]) {
 
         printf("Das Spiel ist vorbei. Die letzte Stellung war:\n");
 
-        resetTallocCounter();
-        resetBoard();
+        prepareNewRound();
         printf("\n=========LETZTE STELLUNG=========\n");
         for (int i = 0; i < pGeneralInfo->sizeMoveShmem; i++) {
             if (addToSquare(codeToCoord(pMoveInfo[i].line + 2), pMoveInfo[i].line[0]) != 0) {

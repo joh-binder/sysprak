@@ -6,7 +6,6 @@
 
 #include "util.h"
 #include "thinkerfunctions.h"
-#include "shmfunctions.h"
 
 #define NUMBER_OF_PIECES_IN_BASHNI 32
 #define NUM_ROWS 8 // (auch Zahl der Spalten)
@@ -256,6 +255,12 @@ void resetBoard(void) {
     for (int i = 0; i < 64; i++) {
         board[i] = NULL;
     }
+}
+
+/* Bündelt die Funktionen resetTallocCounter und resetBoard, da diese sowieso miteinander verwendet werden sollen. */
+void prepareNewRound(void) {
+    resetTallocCounter();
+    resetBoard();
 }
 
 // Gibt den zu einer Koordinate auf dem Spielfeld gehörigen Pointer zurück; oder NULL bei ungültiger Koordinate.
