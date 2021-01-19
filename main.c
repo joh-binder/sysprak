@@ -211,10 +211,16 @@ int main(int argc, char *argv[]) {
         pause();
 
         // nur zu Testzwecken, kann weg
-        printf("Ich bin im Elternprozess und versuche, aus dem Shmemory zu lesen:\n");
-        printf("Allgemein: %s, %s, %d, %d\n", pGeneralInfo->gameKindName, pGeneralInfo->gameName, pGeneralInfo->numberOfPlayers, pGeneralInfo->ownPlayerNumber);
-        printf("Ich:  %s, %d, %d\n", pPlayerInfo->playerName, pPlayerInfo->playerNumber, pPlayerInfo->readyOrNot);
-        printf("Gegner:  %s, %d, %d\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber, (pPlayerInfo+1)->readyOrNot);
+//        printf("Ich bin im Elternprozess und versuche, aus dem Shmemory zu lesen:\n");
+//        printf("Allgemein: %s, %s, %d, %d\n", pGeneralInfo->gameKindName, pGeneralInfo->gameName, pGeneralInfo->numberOfPlayers, pGeneralInfo->ownPlayerNumber);
+//        printf("Ich:  %s, %d, %d\n", pPlayerInfo->playerName, pPlayerInfo->playerNumber, pPlayerInfo->readyOrNot);
+//        printf("Gegner:  %s, %d, %d\n", (pPlayerInfo+1)->playerName, (pPlayerInfo+1)->playerNumber, (pPlayerInfo+1)->readyOrNot);
+
+        if (!pGeneralInfo->isActive) { // wenn das Spiel bereits inaktiv ist (durch Fehler im Prolog im Connector), soll sich auch der Thinker beenden
+            printf("Das Spiel ist nicht mehr aktiv. Entweder es gab im Connector einen Fehler oder die Partie wurde bereits zu Ende gespielt. Der Thinker beendet sich jetzt auch.\n");
+            cleanupMain();
+            return EXIT_SUCCESS;
+        }
 
         if (setUpMemoryForThinker(pGeneralInfo)) {
             fprintf(stderr, "Fehler bei der bei der Vorbereitung der Speicherbereiche für den Thinker (genauere Infos in der Fehlermeldung eins weiter oben).\n");
@@ -261,7 +267,7 @@ int main(int argc, char *argv[]) {
         }
         printFull();
 
-        printf("Der Thinker beendet sich jetzt.\n");
+        printf("Der Thinker beendet sich jetzt auch.\n");
 
         // Aufräumarbeiten
         if (cleanupMain() != 0) fprintf(stderr, "Fehler beim Aufräumen\n");

@@ -69,6 +69,7 @@ void mainloop_cleanup(void) {
     if (kill(pGeneralInfo->pidThinker, SIGUSR1) != 0) {
         fprintf(stderr, "Fehler beim Senden des Signals in mainloop_cleanup.\n");
     }
+    printf("Der Connector beendet sich jetzt.\n");
 
 }
 
@@ -354,7 +355,7 @@ void mainloop_sockline(char* line){
                 counter = 21; // weiter in Zustand 21 (d.h. Steine normal lesen und in Shmemory speichern)
             }
         } else if (strcmp(line, "+ QUIT") == 0) {
-            printf("Das Spiel ist vorbei. Der Connector beendet sich jetzt.\n");
+            printf("Das Spiel ist vorbei.\n");
             mainloop_cleanup();
             exit(EXIT_SUCCESS);
         } else if (startsWith(line, "+ PLAYER")) { // erwartet '+ PLAYERXWON Yes/No'
