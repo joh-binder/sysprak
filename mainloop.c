@@ -25,6 +25,21 @@ typedef struct
     void (*line)(char*);
 } LineBuffer;
 
+typedef enum {
+    EXPECT_WELCOME_LINE,
+    EXPECT_GAME_ID_PROMPT,
+    EXPECT_GAME_KIND_NAME,
+    EXPECT_GAME_NAME,
+    EXPECT_OWN_PLAYER_INFO,
+    EXPECT_TOTAL_PLAYER_INFO,
+    EXPECT_OPP_PLAYER_INFO,
+    MAIN_STATE,
+    MOVE,
+    GAME_OVER,
+    READING_PIECES_FIRST_TIME,
+    READING_PIECES_REGULAR
+} protocol_state;
+
 int sockfiled = 0;
 int pipefiled = 0;
 char gameID[14];
@@ -33,7 +48,8 @@ int wantedPlayerNumber;
 //Epoll struct um Server und Pipe gleichzeitig auf eingehende Nachrichten zu überprüfen
 struct epoll_event eventpipe, eventsock, events[MAX_EVENTS];
 int epollfd, nfds;
-int counter = 0;
+
+protocol_state current_state = EXPECT_WELCOME_LINE;
 
 // Pointer auf die Shared-Memory-Bereiche
 static struct gameInfo *pGeneralInfo;
@@ -48,7 +64,7 @@ int countPieceLines = 0;
 struct line *pTempMemoryForPieces = NULL;
 
 static bool moveShmExists = false;
-static int prevState; // Rücksprungzustand nach dem Einlesen von Steinen
+static protocol_state prevState; // Rücksprungzustand nach dem Einlesen von Steinen
 
 static char gamekindserver[MAX_LEN];
 static char gamename[MAX_LEN];
@@ -115,71 +131,56 @@ void mainloop_sockline(char* line){
 
     strcpy(buffer,"");
 
+    if (strlen(line) > 1 && *line == '-') {
 
-    if(strlen(line) > 1 && *line == '-'){
-
-        //Fehlerbehandlung bei falschen Angaben
-        if(strcmp(line + 2, "TIMEOUT Be faster next time") == 0){
+        // Fehlerbehandlung bei falschen Angaben
+        if (strcmp(line + 2, "TIMEOUT Be faster next time") == 0) {
             fprintf(stderr, "Fehler! Zu langsam. Versuche beim nächsten Mal schneller zu sein. (Server: %s)\n", line + 2);
-            mainloop_cleanup();
-            exit(EXIT_FAILURE);
-        }else if(strcmp(line + 2, "Not a valid game ID") == 0){
+        } else if(strcmp(line + 2, "Not a valid game ID") == 0) {
             fprintf(stderr, "Fehler! Keine zulässige Game ID. (Server: %s)\n", line + 2);
-            mainloop_cleanup();
-            exit(EXIT_FAILURE);
-        }else if(strcmp(line + 2, "Game does not exist") == 0){
+        } else if(strcmp(line + 2, "Game does not exist") == 0) {
             fprintf(stderr, "Fehler! Dieses Spiel existiert nicht. (Server: %s)\n", line + 2);
-            mainloop_cleanup();
-            exit(EXIT_FAILURE);
-        }else if(strcmp(line + 2, "No free player") == 0){
+        } else if(strcmp(line + 2, "No free player") == 0) {
             fprintf(stderr, "Fehler! Spieler ist nicht verfügbar. (Server: %s)\n", line + 2);
-            mainloop_cleanup();
-            exit(EXIT_FAILURE);
-        }else if(strcmp(line + 2, "Client Version does not match server Version") == 0){
+        } else if(strcmp(line + 2, "Client Version does not match server Version") == 0) {
             fprintf(stderr, "Fehler! Die Client Version und Server Version stimmen nicht überein. (Server: %s)\n", line + 2);
-            mainloop_cleanup();
-            exit(EXIT_FAILURE);
-        }else if(startsWith(line+2, "Invalid Move")){
+        } else if(startsWith(line+2, "Invalid Move")) {
             fprintf(stderr, "Fehler! Es wurde ein ungültiger Spielzug übermittelt. (Server: %s)\n", line + 2);
-            mainloop_cleanup();
-            exit(EXIT_FAILURE);
-        }else{
+        } else {
             fprintf(stderr, "Es ist ein unerwarteter Fehler aufgetreten. (Server: %s)\n", line + 2);
-            mainloop_cleanup();
-            exit(EXIT_FAILURE);
         }
 
+        mainloop_cleanup();
         exit(EXIT_FAILURE);
     }
 
-    //Erwartet: + MNM Gameserver v2.3 accepting connections
-    if(counter == 0){
-        counter++;
+    // Erwartet: + MNM Gameserver v2.3 accepting connections
+    if (current_state == EXPECT_WELCOME_LINE) {
         sprintf(buffer, "VERSION %s\n", CLIENTVERSION);
         write(sockfiled, buffer, strlen(buffer));
+        current_state = EXPECT_GAME_ID_PROMPT;
 
 
-    //Erwartet: + Client version accepted - please send Game-ID to join
-    }else if(counter == 1){
-        counter++;
+    // Erwartet: + Client version accepted - please send Game-ID to join
+    } else if (current_state == EXPECT_GAME_ID_PROMPT) {
         sprintf(buffer, "ID %s\n", gameID);
         write(sockfiled, buffer, strlen(buffer));
+        current_state = EXPECT_GAME_KIND_NAME;
 
 
-    //Erwartet: + PLAYING Bashni
-    }else if(counter == 2){
-        counter++;
+    // Erwartet: + PLAYING Bashni
+    } else if (current_state == EXPECT_GAME_KIND_NAME) {
         strncpy(gamekindserver, line + 10, MAX_LEN);
         if (strcmp(gamekindserver, "Bashni") != 0) {
             fprintf(stderr, "Fehler! Falsche Spielart. Spiel des Clients: %s. Spiel des Servers: %s. Client wird beendet.\n", GAMEKINDNAME, gamekindserver);
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
+        current_state = EXPECT_GAME_NAME;
 
 
-    //Erwartet: + <<Game-Name>>
-    }else if(counter == 3){
-        counter++;
+    // Erwartet: + <<Game-Name>>
+    } else if (current_state == EXPECT_GAME_NAME){
         strncpy(gamename, line+2, MAX_LEN-2);
         gamename[MAX_LEN-1] = '\0';
 
@@ -196,15 +197,15 @@ void mainloop_sockline(char* line){
         strncpy(pGeneralInfo->gameKindName, gamekindserver, MAX_LENGTH_NAMES);
         strncpy(pGeneralInfo->gameName, gamename, MAX_LENGTH_NAMES);
 
-    //Erwartet: + YOU <<Mitspielernummer>> <<Mitspielername>>
-    } else if(counter == 4) {
-        counter++;
+        current_state = EXPECT_OWN_PLAYER_INFO;
+
+    // Erwartet: + YOU <<Mitspielernummer>> <<Mitspielername>>
+    } else if (current_state == EXPECT_OWN_PLAYER_INFO) {
         if (sscanf(line+6, "%d %[^\n]", &ownPlayerNumber, playerName) != 2) {
             fprintf(stderr, "Fehler beim Verarbeiten der eigenen Spielerinformationen\n");
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
-        //printf("Eigene Spielernummer: %d, Name: %s\n", ownPlayerNumber, playerName);
         pGeneralInfo->ownPlayerNumber = ownPlayerNumber;
 
         // überträgt diese Informationen in den Shared-Memory-Bereich
@@ -216,9 +217,10 @@ void mainloop_sockline(char* line){
         }
         *pFirstPlayer = createPlayerInfoStruct(ownPlayerNumber, playerName, true);
 
-    //Erwartet: + TOTAL <<Mitspieleranzahl>>
-    } else if(counter == 5) {
-        counter++;
+        current_state = EXPECT_TOTAL_PLAYER_INFO;
+
+    // Erwartet: + TOTAL <<Mitspieleranzahl>>
+    } else if (current_state == EXPECT_TOTAL_PLAYER_INFO) {
         printf("Total: %s\n", line + 2);
         if (sscanf(line+2, "%*[^ ] %d", &totalplayer) != 1) {
             fprintf(stderr, "Fehler beim Verarbeiten der Mitspieleranzahl\n");
@@ -235,8 +237,10 @@ void mainloop_sockline(char* line){
 
         pGeneralInfo->numberOfPlayers = totalplayer; // diese Information muss im Shmemory noch ergänzt werden
 
+        current_state = EXPECT_OPP_PLAYER_INFO;
+
     //Erwartet: + <<Mitspielernummer>> <<Mitspielername>> <<Bereit>>
-    } else if(counter == 6){
+    } else if (current_state == EXPECT_OPP_PLAYER_INFO) {
         if (strcmp(line, "+ ENDPLAYERS") != 0) {
 
             countOpponents++;
@@ -269,7 +273,7 @@ void mainloop_sockline(char* line){
 
         } else {
             // es kommen keine oppInfos mehr -> beim nächsten sockline-Aufrufe in den nächsten Zustand gehen
-            counter++;
+            current_state = MAIN_STATE;
 
             // jetzt können wir alle Infos ausdrucken
             prettyPrint(gamekindserver, gameID, playerName, totalplayer, oppInfo);
@@ -285,10 +289,9 @@ void mainloop_sockline(char* line){
                     *pNextPlayer = createPlayerInfoStruct(oppInfo[i].playerNumber, oppInfo[i].playerName, oppInfo[i].readyOrNot);
                 }
             }
-
         }
 
-    } else if (counter == 7) { // entspricht "normalem" Zustand nach dem Prolog
+    } else if (current_state == MAIN_STATE) { // entspricht "normalem" Zustand nach dem Prolog
 
         if (startsWith(line, "+ WAIT")) {
             // Antwort "OKWAIT" zurückschicken
@@ -296,16 +299,16 @@ void mainloop_sockline(char* line){
             write(sockfiled, buffer, strlen(buffer));
             printf("Ich habe das WAIT beantwortet.\n"); // nur für mich zur Kontrolle, kann weg
         } else if (startsWith(line, "+ MOVE"))  {
-            counter = 8; // weiter in Zustand 8
+            current_state = MOVE;
         } else if (strcmp(line, "+ GAMEOVER") == 0) {
-            counter = 10; // weiter in Zustand 10
+            current_state = GAME_OVER;
         } else {
             fprintf(stderr, "Fehler! Nicht interpretierbare Zeile erhalten: %s\n", line);
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
 
-    } else if (counter == 8) { // d.h. Zustand bei Move
+    } else if (current_state == MOVE) { // d.h. Zustand bei Move
         if (startsWith(line, "+ PIECESLIST")) {
             countPieceLines = 0; // auf jeden Fall Zähler für Spielsteine zurücksetzen
             if (!moveShmExists) { // wenn es noch kein Move-Shmemory gibt
@@ -315,11 +318,11 @@ void mainloop_sockline(char* line){
                     mainloop_cleanup();
                     exit(EXIT_FAILURE);
                 }
-                prevState = 8;
-                counter = 20; // weiter in Zustand 20 (d.h. Steine lesen und zwischenspeichern)
+                prevState = MOVE;
+                current_state = READING_PIECES_FIRST_TIME;
             } else { // wenn es bereits Move-Shmemory gibt
-                prevState = 8;
-                counter = 21; // weiter in Zustand 21 (d.h. Steine normal lesen und in Shmemory speichern)
+                prevState = MOVE;
+                current_state = READING_PIECES_REGULAR;
             }
         } else if (strcmp(line, "+ OKTHINK") == 0) {
             // Signal an Thinker schicken
@@ -330,13 +333,13 @@ void mainloop_sockline(char* line){
 	        }
         } else if (strcmp(line, "+ MOVEOK") == 0) {
             printf("Spielzug wurde akzeptiert\n");
-            counter = 7; // d.h. zurück in den Normalzutand
+            current_state = MAIN_STATE;
         } else {
-            fprintf(stderr, "Fehler! Unvorhergesehene Nachricht in Zustand Nr. %d: %s\n", counter, line);
+            fprintf(stderr, "Fehler! Unvorhergesehene Nachricht in Zustand Move: %s\n", line);
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
-    } else if (counter == 10) { // Zustand nach Gameover
+    } else if (current_state == GAME_OVER) { // Zustand nach Gameover
         if (startsWith(line, "+ PIECESLIST")) {
             countPieceLines = 0; // Zähler für Spielsteine zurücksetzen
             if (!moveShmExists) { // wenn es noch kein Move-Shmemory gibt (sofort Game Over, z.B. bei Aufruf einer Partie, die schon vorbei ist)
@@ -346,11 +349,11 @@ void mainloop_sockline(char* line){
                     mainloop_cleanup();
                     exit(EXIT_FAILURE);
                 }
-                prevState = 10;
-                counter = 20; // weiter in Zustand 20 (d.h. Steine lesen und zwischenspeichern)
+                prevState = GAME_OVER;
+                current_state = READING_PIECES_FIRST_TIME;
             } else {
-                prevState = 10;
-                counter = 21; // weiter in Zustand 21 (d.h. Steine normal lesen und in Shmemory speichern)
+                prevState = GAME_OVER;
+                current_state = READING_PIECES_REGULAR;
             }
         } else if (strcmp(line, "+ QUIT") == 0) {
             printf("Das Spiel ist vorbei.\n");
@@ -373,11 +376,11 @@ void mainloop_sockline(char* line){
             }
             printf("%s (Spieler %d) hat %s.\n", getPlayerFromNumber(pnum)->playerName, pnum, (strcmp(hasWon, "Yes") == 0) ? "gewonnen" : "verloren");
         } else {
-            fprintf(stderr, "Fehler! Unvorhergesehene Nachricht in Zustand Nr. %d: %s\n", counter, line);
+            fprintf(stderr, "Fehler! Unvorhergesehene Nachricht in Zustand Game Over: %s\n", line);
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
-    } else if (counter == 20) { // Zustand, in dem zum ersten Mal Steine eingelesen werden --> in Zwischenspeicher, danach in Shmem umschreiben
+    } else if (current_state == READING_PIECES_FIRST_TIME) { // Zustand, in dem zum ersten Mal Steine eingelesen werden --> in Zwischenspeicher, danach in Shmem umschreiben
         if (strcmp(line, "+ ENDPIECESLIST") == 0) {
             pGeneralInfo->sizeMoveShmem = countPieceLines; // Anzahl der Spielsteininfos im Shmemory aktualisieren
 
@@ -395,36 +398,36 @@ void mainloop_sockline(char* line){
             free(pTempMemoryForPieces);
             pTempMemoryForPieces = NULL;
 
-            if (prevState != 10) { // bei Game Over wollen wir kein "THINKING" zurückschreiben
+            if (prevState != GAME_OVER) { // bei Game Over wollen wir kein "THINKING" zurückschreiben
                 sprintf(buffer, "THINKING\n");
                 write(sockfiled, buffer, strlen(buffer));
             }
 
-            counter = prevState; // zurück zu Move (8) oder Game Over (10)
+            current_state = prevState; // zurück zu Move oder Game Over
         } else { // d.h. diese Zeile ist ein Spielstein
             // printf("Spielstein (erste Runde): %s\n", line+2);
             pTempMemoryForPieces = (struct line *)realloc(pTempMemoryForPieces, (countPieceLines+1) * sizeof(struct line)); // Platz für ein struct line mehr von realloc holen
             pTempMemoryForPieces[countPieceLines] = createLineStruct(line+2); // den empfangenen String in den gereallocten Speicher schreiben
             countPieceLines++;
         }
-    } else if (counter == 21) { // Zustand, in dem Steine eingelesen und direkt im Shmemory gespeichert werden
+    } else if (current_state == READING_PIECES_REGULAR) { // Zustand, in dem Steine eingelesen und direkt im Shmemory gespeichert werden
         if (strcmp(line, "+ ENDPIECESLIST") == 0) {
             pGeneralInfo->sizeMoveShmem = countPieceLines; // der Allgemeinheit halber, ist aber in Bashni immer 32
             pGeneralInfo->newMoveInfoAvailable = true;
 
-            if (prevState != 10) { // bei Game Over wollen wir kein "THINKING" zurückschreiben
+            if (prevState != GAME_OVER) { // bei Game Over wollen wir kein "THINKING" zurückschreiben
                 sprintf(buffer, "THINKING\n");
                 write(sockfiled, buffer, strlen(buffer));
             }
 
-            counter = prevState; // zurück zu Move (8) oder Game Over (10)
+            current_state = prevState; // zurück zu Move oder Game Over
         } else { // d.h. diese Zeile ist ein Spielstein
             // printf("Spielstein (normal): %s\n", line+2);
             pMoves[countPieceLines] = createLineStruct(line+2);
             countPieceLines++;
         }
     } else {
-        fprintf(stderr, "Fehler! Unvorhergesehener Zustand Nr. %d.\n", counter);
+        fprintf(stderr, "Fehler! Unvorhergesehener Zustand mit Nr. %d.\n", current_state);
         mainloop_cleanup();
         exit(EXIT_FAILURE);
     }
