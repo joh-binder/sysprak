@@ -96,11 +96,10 @@ void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer
 void mainloop_pipeline(char* line){
 
     char buffer[MAX_LEN];
-    int bytessend;
 
     memset(buffer, 0, MAX_LEN);
     sprintf(buffer, "PLAY %s\n", line);
-    bytessend = write(sockfiled, buffer, strlen(buffer));
+    write(sockfiled, buffer, strlen(buffer));
 
 }
 
@@ -110,7 +109,6 @@ void mainloop_pipeline(char* line){
 void mainloop_sockline(char* line){
 
     char buffer[MAX_LEN];
-    int bytessend;
 
     // Variablen, die hier standen, sind jetzt ganz oben statisch deklariert
     // valgrind ist nämlich glücklicher, wenn die initialisiert werden, und bei statischen Variablen passiert das von selbst
@@ -158,14 +156,14 @@ void mainloop_sockline(char* line){
     if(counter == 0){
         counter++;
         sprintf(buffer, "VERSION %s\n", CLIENTVERSION);
-        bytessend = write(sockfiled, buffer, strlen(buffer));
+        write(sockfiled, buffer, strlen(buffer));
 
 
     //Erwartet: + Client version accepted - please send Game-ID to join
     }else if(counter == 1){
         counter++;
         sprintf(buffer, "ID %s\n", gameID);
-        bytessend = write(sockfiled, buffer, strlen(buffer));
+        write(sockfiled, buffer, strlen(buffer));
 
 
     //Erwartet: + PLAYING Bashni
@@ -187,11 +185,11 @@ void mainloop_sockline(char* line){
 
         if (wantedPlayerNumber == -1) {
             sprintf(buffer, "PLAYER\n");
-            bytessend = write(sockfiled, buffer, strlen(buffer));
+            write(sockfiled, buffer, strlen(buffer));
 
         } else {
             sprintf(buffer, "PLAYER %d\n", wantedPlayerNumber);
-            bytessend = write(sockfiled, buffer, strlen(buffer));
+            write(sockfiled, buffer, strlen(buffer));
         }
 
         // überträgt die allgemeinen Spielinfos in den Shmemory-Bereich
@@ -295,7 +293,7 @@ void mainloop_sockline(char* line){
         if (startsWith(line, "+ WAIT")) {
             // Antwort "OKWAIT" zurückschicken
             sprintf(buffer, "OKWAIT\n");
-            bytessend = write(sockfiled, buffer, strlen(buffer));
+            write(sockfiled, buffer, strlen(buffer));
             printf("Ich habe das WAIT beantwortet.\n"); // nur für mich zur Kontrolle, kann weg
         } else if (startsWith(line, "+ MOVE"))  {
             counter = 8; // weiter in Zustand 8
@@ -399,7 +397,7 @@ void mainloop_sockline(char* line){
 
             if (prevState != 10) { // bei Game Over wollen wir kein "THINKING" zurückschreiben
                 sprintf(buffer, "THINKING\n");
-                bytessend = write(sockfiled, buffer, strlen(buffer));
+                write(sockfiled, buffer, strlen(buffer));
             }
 
             counter = prevState; // zurück zu Move (8) oder Game Over (10)
@@ -416,7 +414,7 @@ void mainloop_sockline(char* line){
 
             if (prevState != 10) { // bei Game Over wollen wir kein "THINKING" zurückschreiben
                 sprintf(buffer, "THINKING\n");
-                bytessend = write(sockfiled, buffer, strlen(buffer));
+                write(sockfiled, buffer, strlen(buffer));
             }
 
             counter = prevState; // zurück zu Move (8) oder Game Over (10)
