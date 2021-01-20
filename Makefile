@@ -1,4 +1,4 @@
-CFLAGS ?= -Wall -Wextra -g
+CFLAGS ?= -Wall -Wextra -Werror -g
 CC ?= gcc
 CONFIG ?= "client.conf"
 

@@ -106,7 +106,7 @@ int createShmemoryForMoves(int numOfLines) {
 		if (shmid < 0) {
 			perror("Fehler bei Shared-Memory-Erstellung");
 		}
-		printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
+		// printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
 	}
 	return shmid;
 }
@@ -117,7 +117,7 @@ int shmCreate(int shmDataSize) {
     if (shmid < 0) {
         perror("Fehler bei Shared-Memory-Erstellung");
     }
-    printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
+    // printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
     return shmid;
 }
 
@@ -126,9 +126,7 @@ int shmCreate(int shmDataSize) {
  * Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */
 int accessExistingMoveShmem(void) {
     int shmid = shmget(ftok("main.c", KEY_FOR_MOVE_SHMEM), sizeOfMoveShmallocBlock, IPC_EXCL | SHM_R | SHM_W);
-    if (shmid < 0) {
-        printf("Shared-Memory für Spielzüge existiert noch nicht.\n");
-    }
+    // if (shmid < 0) printf("Shared-Memory für Spielzüge existiert noch nicht.\n");
     return shmid;
 }
 

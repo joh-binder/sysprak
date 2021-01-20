@@ -25,8 +25,8 @@ typedef struct
     void (*line)(char*);
 } LineBuffer;
 
-int sockfiled;
-int pipefiled;
+int sockfiled = 0;
+int pipefiled = 0;
 char gameID[14];
 int wantedPlayerNumber;
 
@@ -58,14 +58,14 @@ static int ownPlayerNumber;
 
 void mainloop_cleanup(void) {
     pGeneralInfo->isActive = false;
-    close(sockfiled);
-    close(pipefiled);
+    if (sockfiled != 0) close(sockfiled);
+    if (pipefiled != 0) close(pipefiled);
 
     if (pTempMemoryForPieces != NULL) {
         free(pTempMemoryForPieces);
     }
 
-    // sendet ein Signal an Thinker, um ihn aus der Schleife zu befreien (wenn Thinker gar nicht in Schleife -> egal, Signal schadet nicht)
+    // sendet ein Signal an Thinker, damit er am pause vorbeikommt und sich auch beenden kann
     if (kill(pGeneralInfo->pidThinker, SIGUSR1) != 0) {
         fprintf(stderr, "Fehler beim Senden des Signals in mainloop_cleanup.\n");
     }
@@ -449,13 +449,9 @@ void mainloop_filehandler(char* buffer, int len, LineBuffer* linebuffer){
             oldi = i + 1;
         }
     }
-    //Kopiert Reststring an den Anfang
+    // Kopiert Reststring an den Anfang
     memmove(linebuffer->buffer, &(linebuffer->buffer[oldi]), (linebuffer->filled)-oldi);
     linebuffer->filled = (linebuffer->filled)-oldi;
-
-    //War scheinbar falsch. Steht nur drin bis ich weiß wieso
-    //printf("Test_Filehandler: %s\n", linebuffer->buffer);
-    //(*(linebuffer->line))(linebuffer->buffer);
 }
 
 
@@ -463,7 +459,7 @@ void mainloop_filehandler(char* buffer, int len, LineBuffer* linebuffer){
 
 
 
-//Epoll event Loop um Pipe und Socket zu überwachen
+// Epoll event Loop, um Pipe und Socket zu überwachen
 void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
 
     char buffersock[MAX_LEN];
@@ -475,11 +471,11 @@ void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
     sockfiled = sockfd;
     pipefiled = pipefd[2];
     wantedPlayerNumber = playerNum;
-    for(long unsigned int i = 0; i < strlen(ID); i++){
+    for (long unsigned int i = 0; i < strlen(ID); i++) {
         gameID[i] = ID[i];
     }
 
-    //Erstellt zwei Instanzen des LineBuffer Strukts; eins für die Pipe und eins für den Socket
+    // Erstellt zwei Instanzen des LineBuffer Structs; eins für die Pipe und eins für den Socket
     LineBuffer sockbuffer;
     LineBuffer pipebuffer;
     pipebuffer.filled = 0;
@@ -487,37 +483,39 @@ void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
     pipebuffer.line = &mainloop_pipeline;
     sockbuffer.line = &mainloop_sockline;
 
-    //Erstellen der Epoll Instanz
+    // Erstellen der Epoll Instanz
     epollfd = epoll_create1(0);
-    if(epollfd == -1){
+    if (epollfd == -1) {
         perror("Fehler bei epoll_create\n");
+        mainloop_cleanup();
+        exit(EXIT_FAILURE);
     }
 
-    //Daten für die zu überwachende Pipe angeben
+    // Daten für die zu überwachende Pipe angeben
     eventpipe.events = EPOLLIN;
     eventpipe.data.fd = pipefd[0];
-    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, pipefd[0], &eventpipe) == -1){
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, pipefd[0], &eventpipe) == -1) {
         perror("Fehler bei epoll_ctl Pipe\n");
-        close(sockfd);
+        mainloop_cleanup();
         exit(EXIT_FAILURE);
     }
 
-    //Daten für den zu überwachenden Socket angeben
+    // Daten für den zu überwachenden Socket angeben
     eventsock.events = EPOLLIN;
     eventsock.data.fd = sockfd;
-    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &eventsock) == -1){
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &eventsock) == -1) {
         perror("Fehler bei epoll_ctl Socket\n");
-        close(sockfd);
+        mainloop_cleanup();
         exit(EXIT_FAILURE);
     }
 
-    //Eventloop
-    while(pGeneralInfo->isActive){
-        //Warten auf Event
+    // Eventloop
+    while (pGeneralInfo->isActive) {
+        // Warten auf Event
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
-        if (nfds == -1){
+        if (nfds == -1) {
             perror("Fehler bei epoll_wait\n");
-            close(sockfd);
+            mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
 
@@ -535,12 +533,10 @@ void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
         }
     }
 
-    //Fehlerbehandlung, wenn closen für den Epollfd fehlschlägt
-    if(close(epollfd)){
+    // Fehlerbehandlung, wenn closen für den Epollfd fehlschlägt
+    if (close(epollfd)) {
         perror("Fehler bei close(epollfd)\n");
-        pGeneralInfo->isActive = 0;
-        close(sockfiled);
-        close(pipefiled);
+        mainloop_cleanup();
         exit(EXIT_FAILURE);
     }
 
