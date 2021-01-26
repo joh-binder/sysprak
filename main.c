@@ -210,8 +210,8 @@ int main(int argc, char *argv[]) {
 
         pause();
 
-        if (!pGeneralInfo->isActive) { // wenn das Spiel bereits inaktiv ist (durch Fehler im Prolog im Connector), soll sich auch der Thinker beenden
-            printf("Das Spiel ist nicht mehr aktiv. Entweder es gab im Connector einen Fehler oder die Partie wurde bereits zu Ende gespielt. Der Thinker beendet sich jetzt auch.\n");
+        if (!pGeneralInfo->isActive && !pGeneralInfo->prologueSuccessful) {
+            printf("Es gab im Connector einen Fehler schon während des Prologs. Der Thinker beendet sich jetzt auch.\n");
             cleanupMain();
             return EXIT_SUCCESS;
         }
@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {
             pause();
         }
 
-        printf("Das Spiel ist vorbei. Die letzte Stellung war:\n");
+        printf("Die letzte Stellung war:\n");
 
         prepareNewRound();
         printf("\n=========LETZTE STELLUNG=========\n");

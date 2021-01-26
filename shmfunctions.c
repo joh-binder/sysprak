@@ -25,6 +25,7 @@ struct gameInfo createGameInfoStruct(void) {
     ret.sizeMoveShmem = 0;
     ret.newMoveInfoAvailable = false;
     ret.isActive = true;
+    ret.prologueSuccessful = false;
     return ret;
 }
 

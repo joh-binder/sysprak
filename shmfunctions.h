@@ -18,6 +18,7 @@ struct gameInfo {
     int sizeMoveShmem; // d.h. Anzahl an struct line, für die das Spielzeug-Shmemory erstellt wurde
     bool newMoveInfoAvailable;
     bool isActive; // = noch nicht Game Over
+    bool prologueSuccessful;
 };
 
 struct playerInfo {

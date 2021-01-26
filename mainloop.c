@@ -289,6 +289,8 @@ void mainloop_sockline(char* line){
                     *pNextPlayer = createPlayerInfoStruct(oppInfo[i].playerNumber, oppInfo[i].playerName, oppInfo[i].readyOrNot);
                 }
             }
+
+            pGeneralInfo->prologueSuccessful = true;
         }
 
     } else if (current_state == MAIN_STATE) { // entspricht "normalem" Zustand nach dem Prolog

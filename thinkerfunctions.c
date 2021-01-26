@@ -826,15 +826,17 @@ move tryAllMoves(coordinate origin) {
                     break;
             }
 
-            if (checkMove(origin, numsToCoord(newX, newY)) == 0) {
+            coordinate possibleTarget = numsToCoord(newX, newY);
 
-                coordToCode(strTarget, numsToCoord(newX, newY));
+            if (checkMove(origin, possibleTarget) == 0) {
+
+                coordToCode(strTarget, possibleTarget);
                 printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-                rating = evaluateMove(origin, numsToCoord(newX, newY));
+                rating = evaluateMove(origin, possibleTarget);
                 if (rating > bestMove.rating) {
                     bestMove.origin = origin;
-                    bestMove.target = numsToCoord(newX, newY);
+                    bestMove.target = possibleTarget;
                     bestMove.rating = rating;
                 }
             }
@@ -870,17 +872,19 @@ move tryAllMoves(coordinate origin) {
                 newX = origin.xCoord + i * xDirection;
                 newY = origin.yCoord + i * yDirection;
 
-                if (checkMove(origin, numsToCoord(newX, newY)) != 0) {
+                coordinate possibleTarget = numsToCoord(newX, newY);
+
+                if (checkMove(origin, possibleTarget) != 0) {
                     break; // wenn Bewegen um i in diese Richtung ungültig ist, können wir abbrechen, denn Bewegen um i+1 ist dann sicher auch ungültig
                 }
 
-                coordToCode(strTarget, numsToCoord(newX, newY));
+                coordToCode(strTarget, possibleTarget);
                 printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-                rating = evaluateMove(origin, numsToCoord(newX, newY));
+                rating = evaluateMove(origin, possibleTarget);
                 if (rating > bestMove.rating) {
                     bestMove.origin = origin;
-                    bestMove.target = numsToCoord(newX, newY);
+                    bestMove.target = possibleTarget;
                     bestMove.rating = rating;
                 }
             }
@@ -1026,16 +1030,18 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
                 continue; // wenn mich newX/newY genau auf das blockierte Feld führen -> diese Iteration überspringen
             }
 
-            if (checkCapture(origin, numsToCoord(newX, newY)) == 0) {
-                coordToCode(strTarget, numsToCoord(newX, newY));
+            coordinate possibleTarget = numsToCoord(newX, newY);
+
+            if (checkCapture(origin, possibleTarget) == 0) {
+                coordToCode(strTarget, possibleTarget);
                 if (verbose) {
                     printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
                 }
 
-                rating = evaluateCapture(origin, numsToCoord(newX, newY), verbose);
+                rating = evaluateCapture(origin, possibleTarget, verbose);
                 if (rating > bestMove.rating) {
                     bestMove.origin = origin;
-                    bestMove.target = numsToCoord(newX, newY);
+                    bestMove.target = possibleTarget;
                     bestMove.rating = rating;
                 }
 
@@ -1082,17 +1088,19 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
                 newX = origin.xCoord + i * xDirection;
                 newY = origin.yCoord + i * yDirection;
 
-                if (checkCapture(origin, numsToCoord(newX, newY)) != 0) {
+                coordinate possibleTarget = numsToCoord(newX, newY);
+
+                if (checkCapture(origin, possibleTarget) != 0) {
                     continue; // wenn dieser Schlag ungültig -> nächste Iteration, d.h. überprüfe Schlag auf das Feld eins dahinter
                 }
 
-                coordToCode(strTarget, numsToCoord(newX, newY));
+                coordToCode(strTarget, possibleTarget);
                 if (verbose) printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
 
-                rating = evaluateCapture(origin, numsToCoord(newX, newY), verbose);
+                rating = evaluateCapture(origin, possibleTarget, verbose);
                 if (rating > bestMove.rating) {
                     bestMove.origin = origin;
-                    bestMove.target = numsToCoord(newX, newY);
+                    bestMove.target = possibleTarget;
                     bestMove.rating = rating;
                 }
 
