@@ -58,7 +58,7 @@ struct playerInfo *playerShmalloc();
 
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
  * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer */
-struct playerInfo *getPlayerFromNumber(int targetNumber);
+struct playerInfo *getPlayerFromNumber(int targetNumber, int totalPlayers);
 
 /* Erzeugt einen Shmemory-Bereich, der groß genug ist, um MAX_NUMBER_OF_PLAYERS_IN_SHMEM Stück struct playerInfo
  * aufnehmen zu können. Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */

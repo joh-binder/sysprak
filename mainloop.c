@@ -367,7 +367,18 @@ void mainloop_sockline(char* line){
                 mainloop_cleanup();
                 exit(EXIT_SUCCESS);
             }
-            printf("%s (Spieler %d) hat %s.\n", getPlayerFromNumber(pnum)->playerName, pnum, (strcmp(hasWon, "Yes") == 0) ? "gewonnen" : "verloren");
+
+            if (pnum == (unsigned int) pGeneralInfo->ownPlayerNumber) {
+                printf("Ich (Spieler %d) habe %s.\n", pnum, (strcmp(hasWon, "Yes") == 0) ? "gewonnen" : "verloren");
+            } else {
+                struct playerInfo *pThisPlayer = getPlayerFromNumber(pnum, pGeneralInfo->numberOfPlayers);
+                if (pThisPlayer == NULL) {
+                    fprintf(stderr, "Fehler! Konnte für Spieler Nr. %d keine Informationen im Shared Memory finden.\n", pnum);
+                    mainloop_cleanup();
+                    exit(EXIT_SUCCESS);
+                }
+                printf("%s (Spieler %d) hat %s.\n", pThisPlayer->playerName, pnum, (strcmp(hasWon, "Yes") == 0) ? "gewonnen" : "verloren");
+            }
         } else {
             fprintf(stderr, "Fehler! Unvorhergesehene Nachricht in Zustand Game Over: %s\n", line);
             mainloop_cleanup();

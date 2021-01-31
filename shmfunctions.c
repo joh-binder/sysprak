@@ -73,14 +73,14 @@ struct playerInfo *playerShmalloc() {
 
 /* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
  * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer */
-struct playerInfo *getPlayerFromNumber(int targetNumber) {
-    struct playerInfo *pCurrentPlayer = pStartPlayer;
-    while (pCurrentPlayer != NULL) {
+struct playerInfo *getPlayerFromNumber(int targetNumber, int totalPlayers) {
+    int position = 0;
+    while (position < totalPlayers) {
+        struct playerInfo *pCurrentPlayer = pStartPlayer + position;
         if (pCurrentPlayer->playerNumber == targetNumber) {
             return pCurrentPlayer;
-        } else {
-            pCurrentPlayer += 1;
         }
+        position += 1;
     }
     return NULL;
 }
