@@ -4,10 +4,10 @@ CONFIG ?= "client.conf"
 
 .PHONY: play clean
 
-sysprak-client: main.o mainloop.o util.o shmfunctions.o config.o thinkerfunctions.o  util.o
+sysprak-client: main.o mainloop.o util.o shmfunctions.o config.o thinkerfunctions.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-main.o:	main.c
+main.o: main.c
 	$(CC) $(CFLAGS) -c $^
 
 mainloop.o: mainloop.c mainloop.h
@@ -27,7 +27,7 @@ thinkerfunctions.o: thinkerfunctions.c thinkerfunctions.h
 
 play: sysprak-client
 ifndef GAME_ID
-	$(error Game-ID fehlt. Geben Sie diese in der Form GAME_ID="..." an)
+	$(error Game-ID fehlt. Geben Sie diese in der Form GAME_ID=... an)
 else
 ifndef PLAYER
 	./$< -g $(GAME_ID) -c $(CONFIG)
@@ -37,4 +37,4 @@ endif
 endif
 
 clean:
-	rm -f sysprak-client main.o shmfunctions.o mainloop.o util.o config.o thinkerfunctions.o util.o
+	rm -f sysprak-client main.o mainloop.o util.o shmfunctions.o config.o thinkerfunctions.o
