@@ -71,8 +71,9 @@ struct playerInfo *playerShmalloc() {
     }
 }
 
-/* Durchsucht eine Liste von struct playerInfos nach einer gegebenen Spielernummer, gibt einen
- * Pointer auf das struct des entsprechenden Spielers zurück, falls vorhanden; ansonsten Nullpointer */
+/* Durchsucht den Speicherbereich ab pStartPlayer nach einer gegebenen Spielernummer. Nimmt diese gewünschte Spielernummer
+ * und die Gesamtanzahl der Spieler als Parameter entgegen. Gibt einen Pointer auf das struct des entsprechenden
+ * Spielers zurück, falls vorhanden, ansonsten einen Nullpointer */
 struct playerInfo *getPlayerFromNumber(int targetNumber, int totalPlayers) {
     int position = 0;
     while (position < totalPlayers) {
@@ -130,12 +131,13 @@ int accessExistingMoveShmem(void) {
 }
 
 /* Bindet das Shared-Memory-Segment einer gegebenen ID an den Adressraum an und gibt einen Pointer auf die
- * Anfangsadresse zurück, oder (void *) -1 im Fehlerfall. */
+ * Anfangsadresse zurück, oder NULL im Fehlerfall. */
 void *shmAttach(int shmid) {
     void *shmPointer;
     shmPointer = shmat(shmid, NULL, 0);
     if (shmPointer == (void *) -1) {
         perror("Fehler beim Anbinden von Shared Memory");
+        return NULL;
     }
     return shmPointer;
 }
