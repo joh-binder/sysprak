@@ -553,7 +553,3 @@ void setUpShmemPointers(struct gameInfo *pGeneral, struct playerInfo *pPlayers) 
     pGeneralInfo = pGeneral;
     pPlayerInfo = pPlayers;
 }
-
-
-
-
