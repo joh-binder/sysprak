@@ -1,9 +1,5 @@
 #include <sys/shm.h>
 #include <sys/ipc.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-
 #include "shmfunctions.h"
 
 static int playerShmallocCounter = 0;

@@ -2,6 +2,7 @@
 #define SYSPRAK_THINKERFUNCTIONS_H
 
 #include "shmfunctions.h"
+#include "util.h"
 
 typedef struct coord {
     int xCoord;

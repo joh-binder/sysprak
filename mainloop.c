@@ -1,14 +1,5 @@
-#include <stdio.h>
-#include <unistd.h>
 #include <sys/epoll.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include <signal.h>
-#include <sys/socket.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
 
 #include "mainloop.h"
 #include "util.h"

@@ -1,7 +1,9 @@
 #ifndef SYSPRAK_SHMFUNCTIONS_H
 #define SYSPRAK_SHMFUNCTIONS_H
 
-#include <stdbool.h>
+#include "util.h"
+#include <stdio.h>
+#include <unistd.h>
 
 #define MAX_LENGTH_NAMES 256
 #define MAX_NUMBER_OF_PLAYERS_IN_SHMEM 12

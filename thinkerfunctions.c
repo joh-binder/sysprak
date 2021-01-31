@@ -1,10 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
 #include <float.h>
-
-#include "util.h"
 #include "thinkerfunctions.h"
 
 #define NUMBER_OF_PIECES_IN_BASHNI 32
