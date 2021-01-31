@@ -29,7 +29,8 @@ struct gameInfo createGameInfoStruct(void) {
 struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready) {
     struct playerInfo ret;
     ret.playerNumber = pN;
-    strncpy(ret.playerName, name, MAX_LENGTH_NAMES);
+    strncpy(ret.playerName, name, MAX_LENGTH_NAMES - 1);
+    ret.playerName[MAX_LENGTH_NAMES - 1] = '\0';
     ret.readyOrNot = ready;
     return ret;
 }
@@ -38,7 +39,7 @@ struct playerInfo createPlayerInfoStruct(int pN, char *name, bool ready) {
 struct line createLineStruct(char *content) {
     struct line ret;
     memset(ret.line, 0, MOVE_LINE_BUFFER);
-    strncpy(ret.line, content, MOVE_LINE_BUFFER-1);
+    strncpy(ret.line, content, MOVE_LINE_BUFFER - 1);
     return ret;
 }
 
@@ -62,7 +63,7 @@ int checkPlayerShmallocSize(int size) {
 struct playerInfo *playerShmalloc() {
     if (sizeOfPlayerShmallocBlock < (playerShmallocCounter + 1) * sizeof(struct playerInfo)) {
         fprintf(stderr, "Fehler! Speicherblock ist bereits voll. Kann keinen Speicher mehr zuteilen.\n");
-        return (struct playerInfo *)NULL;
+        return (struct playerInfo *) NULL;
     } else {
         struct playerInfo *pTemp = pStartPlayer + playerShmallocCounter;
         playerShmallocCounter += 1;
@@ -94,18 +95,19 @@ int createShmemoryForPlayers(void) {
 /* Erzeugt einen Shared-Memory-Bereich, der groß genug ist, um numOfLines Stück struct line aufnehmen zu können.
 110  * Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */
 int createShmemoryForMoves(int numOfLines) {
-	sizeOfMoveShmallocBlock = numOfLines * sizeof(struct line);
+    sizeOfMoveShmallocBlock = numOfLines * sizeof(struct line);
 
-	int shmid = accessExistingMoveShmem();
+    int shmid = accessExistingMoveShmem();
 
-	if (shmid < 0) {
-		shmid = shmget(ftok("main.c", KEY_FOR_MOVE_SHMEM), sizeOfMoveShmallocBlock, IPC_CREAT | IPC_EXCL | SHM_R | SHM_W);
-		if (shmid < 0) {
-			perror("Fehler bei Shared-Memory-Erstellung");
-		}
-		// printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
-	}
-	return shmid;
+    if (shmid < 0) {
+        shmid = shmget(ftok("main.c", KEY_FOR_MOVE_SHMEM), sizeOfMoveShmallocBlock,
+                       IPC_CREAT | IPC_EXCL | SHM_R | SHM_W);
+        if (shmid < 0) {
+            perror("Fehler bei Shared-Memory-Erstellung");
+        }
+        // printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
+    }
+    return shmid;
 }
 
 // Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
