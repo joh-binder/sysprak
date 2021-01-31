@@ -1,9 +1,11 @@
 #ifndef UTIL
 #define UTIL
 
-bool startsWith(const char *a, const char *b);
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
-int minInt(int a, int b);
+bool startsWith(const char *a, const char *b);
 
 int getSign(int a);
 
