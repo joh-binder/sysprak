@@ -128,17 +128,39 @@ int main(int argc, char *argv[]) {
 
     // öffnet confFilePath und schreibt die dortigen Konfigurationswerte in das Struct configInfo
     struct cnfgInfo configInfo;
-    if (readFromConfFile(&configInfo, confFilePath) == -1) return EXIT_FAILURE;
+    if (readFromConfFile(&configInfo, confFilePath) == -1) {
+        fprintf(stderr, "Fehler beim Lesen aus der Konfigurationsdatei.\n");
+        return EXIT_FAILURE;
+    }
 
     // erzeugt ein struct GameInfo in einem dafür angelegten Shared-Memory-Bereich
     shmidGeneralInfo = shmCreate(sizeof(struct gameInfo));
+    if (shmidGeneralInfo == -1) {
+        fprintf(stderr, "Fehler! Shared Memory für allgemeine Informationen konnte nicht erstellt werden.\n");
+        cleanupMain();
+        return EXIT_FAILURE;
+    }
     struct gameInfo *pGeneralInfo = shmAttach(shmidGeneralInfo);
-
+    if (pGeneralInfo == NULL) {
+        fprintf(stderr, "Fehler! Shared Memory für allgemeine Informationen konnte nicht angebunden werden.\n");
+        cleanupMain();
+        return EXIT_FAILURE;
+    }
     *pGeneralInfo = createGameInfoStruct();
 
     // legt einen Shared-Memory-Bereich für die struct playerInfos an
     shmidPlayerInfo = createShmemoryForPlayers();
+    if (shmidPlayerInfo == -1) {
+        fprintf(stderr, "Fehler! Shared Memory für Spielerinformationen konnte nicht erstellt werden.\n");
+        cleanupMain();
+        return EXIT_FAILURE;
+    }
     struct playerInfo *pPlayerInfo = shmAttach(shmidPlayerInfo);
+    if (pPlayerInfo == NULL) {
+        fprintf(stderr, "Fehler! Shared Memory für Spielerinformationen konnte nicht angebunden werden.\n");
+        cleanupMain();
+        return EXIT_FAILURE;
+    }
     setUpPlayerAlloc(pPlayerInfo);
     setUpShmemPointers(pGeneralInfo, pPlayerInfo);
 

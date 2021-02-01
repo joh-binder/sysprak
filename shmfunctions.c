@@ -94,7 +94,7 @@ int createShmemoryForPlayers(void) {
 }
 
 /* Erzeugt einen Shared-Memory-Bereich, der groß genug ist, um numOfLines Stück struct line aufnehmen zu können.
-110  * Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */
+ * Gibt die Shm-ID zurück, oder -1 im Fehlerfall. */
 int createShmemoryForMoves(int numOfLines) {
     sizeOfMoveShmallocBlock = numOfLines * sizeof(struct line);
 
@@ -103,9 +103,7 @@ int createShmemoryForMoves(int numOfLines) {
     if (shmid < 0) {
         shmid = shmget(ftok("main.c", KEY_FOR_MOVE_SHMEM), sizeOfMoveShmallocBlock,
                        IPC_CREAT | IPC_EXCL | SHM_R | SHM_W);
-        if (shmid < 0) {
-            perror("Fehler bei Shared-Memory-Erstellung");
-        }
+        if (shmid < 0) { perror("Fehler bei Shared-Memory-Erstellung"); }
         // printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
     }
     return shmid;
@@ -114,9 +112,7 @@ int createShmemoryForMoves(int numOfLines) {
 // Erzeugt ein Shared-Memory-Segment einer gegebenen Größe und gibt dessen ID zurück, oder -1 im Fehlerfall.
 int shmCreate(int shmDataSize) {
     int shmid = shmget(IPC_PRIVATE, shmDataSize, IPC_CREAT | IPC_EXCL | SHM_R | SHM_W);
-    if (shmid < 0) {
-        perror("Fehler bei Shared-Memory-Erstellung");
-    }
+    if (shmid < 0) { perror("Fehler bei Shared-Memory-Erstellung"); }
     // printf("(angelegt) Shared-Memory-ID: %d\n", shmid); // nur zur Kontrolle, kann weg
     return shmid;
 }
@@ -146,9 +142,7 @@ void *shmAttach(int shmid) {
  * Gibt 0 im Erfolgsfall und -1 im Fehlerfall zurück. */
 int shmDetach(void *shmpointer) {
     int detachSuccess = shmdt(shmpointer);
-    if (detachSuccess == -1) {
-        perror("Fehler beim Abbinden von Shared Memory");
-    }
+    if (detachSuccess == -1) { perror("Fehler beim Abbinden von Shared Memory"); }
     return detachSuccess;
 }
 
@@ -156,8 +150,6 @@ int shmDetach(void *shmpointer) {
  * Gibt 0 im Erfolgsfall und -1 im Fehlerfall zurück. */
 int shmDelete(int shmid) {
     int deleteSuccess = shmctl(shmid, IPC_RMID, 0);
-    if (deleteSuccess == -1) {
-        perror("Fehler beim Löschen von Shared Memory");
-    }
+    if (deleteSuccess == -1) { perror("Fehler beim Löschen von Shared Memory"); }
     return deleteSuccess;
 }
