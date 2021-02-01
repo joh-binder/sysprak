@@ -76,7 +76,7 @@ int shmCreate(int shmdatasize);
 int accessExistingMoveShmem(void);
 
 /* Bindet das Shared-Memory-Segment einer gegebenen ID an den Adressraum an und gibt einen Pointer auf die
- * Anfangsadresse zurück, oder (void *) -1 im Fehlerfall. */
+ * Anfangsadresse zurück, oder NULL im Fehlerfall. */
 void *shmAttach(int shmid);
 
 /* Bindet das Shared-Memory-Segment zu einem gegebenen Pointer wieder vom Adressraum ab.

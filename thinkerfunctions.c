@@ -36,7 +36,7 @@ static struct line *pMoveInfo;
  * Bei ungültigen Koordinaten (alles außer A-H und 1-8) sind die Koordinaten -1, -1. */
 coordinate codeToCoord(char code[COORDINATE_LENGTH]) {
     coordinate ret;
-    switch(code[0]) {
+    switch (code[0]) {
         case 'A':
         case 'a':
             ret.xCoord = 0;
@@ -73,7 +73,7 @@ coordinate codeToCoord(char code[COORDINATE_LENGTH]) {
             ret.xCoord = -1;
             break;
     }
-    switch(code[1]) {
+    switch (code[1]) {
         case '1':
             ret.yCoord = 0;
             break;
@@ -109,9 +109,9 @@ coordinate codeToCoord(char code[COORDINATE_LENGTH]) {
  * Bei ungültigen Werten sind die Koordinaten -1, -1. */
 coordinate numsToCoord(int x, int y) {
     coordinate ret;
-    if (x >= 0 && x <= NUM_ROWS-1) ret.xCoord = x;
+    if (x >= 0 && x <= NUM_ROWS - 1) ret.xCoord = x;
     else ret.xCoord = -1;
-    if (y >= 0 && y <= NUM_ROWS-1) ret.yCoord = y;
+    if (y >= 0 && y <= NUM_ROWS - 1) ret.yCoord = y;
     else ret.yCoord = -1;
     return ret;
 }
@@ -119,9 +119,9 @@ coordinate numsToCoord(int x, int y) {
 /* Nimmt als Parameter einen String (sollte 3) und eine coordinate. Wandelt die Koordinate um in die
  * Buchstabe-Zahl-Repräsentation (z.B. x = 4, y = 2 --> B3) und schreibt das Ergebnis in den String */
 void coordToCode(char *target, coordinate c) {
-    char ret[COORDINATE_LENGTH+1];
+    char ret[COORDINATE_LENGTH + 1];
 
-    switch(c.xCoord) {
+    switch (c.xCoord) {
         case 0:
             ret[0] = 'A';
             break;
@@ -150,7 +150,7 @@ void coordToCode(char *target, coordinate c) {
             ret[0] = 'X';
             break;
     }
-    switch(c.yCoord) {
+    switch (c.yCoord) {
         case 0:
             ret[1] = '1';
             break;
@@ -181,7 +181,7 @@ void coordToCode(char *target, coordinate c) {
     }
 
     ret[COORDINATE_LENGTH] = '\0';
-    strncpy(target, ret, COORDINATE_LENGTH+1);
+    strncpy(target, ret, COORDINATE_LENGTH + 1);
 }
 
 // erzeugt ein neues struct gameInfo und initialisiert es mit Standardwerten
@@ -264,7 +264,7 @@ int setUpMemoryForThinker(struct gameInfo *pG) {
 tower *towerAlloc(void) {
     if (sizeOfTowerMalloc < (towerAllocCounter + 1) * sizeof(tower)) {
         fprintf(stderr, "Fehler! Speicherblock ist bereits voll. Kann keinen Speicher mehr zuteilen.\n");
-        return (tower *)NULL;
+        return (tower *) NULL;
     } else {
         tower *pTemp = pPieces + towerAllocCounter;
         towerAllocCounter += 1;
@@ -315,8 +315,8 @@ char getTopPiece(coordinate c) {
  * Repräsentiert alle Spielsteine, aus denen der Turm an der angegebenen Kooordinate besteht, als Folge von Buchstaben
  * (z.B. Bwwbw) und schreibt das Ergebnis in den String. */
 void towerToString(char *target, coordinate c) {
-    char ret[NUMBER_OF_PIECES_IN_BASHNI+1]; // Ergebnisstring
-    memset(ret, 0, NUMBER_OF_PIECES_IN_BASHNI+1);
+    char ret[NUMBER_OF_PIECES_IN_BASHNI + 1]; // Ergebnisstring
+    memset(ret, 0, NUMBER_OF_PIECES_IN_BASHNI + 1);
     tower *pCurrent = getPointerToSquare(c); // Pointer auf den aktuellen Turm (anfangs der komplette Turm)
 
     int i = 0;
@@ -326,8 +326,8 @@ void towerToString(char *target, coordinate c) {
         pCurrent = pCurrent->next; // danach ist aktueller Turm nur noch alle darunterliegenden Steine
         i++;
     }
-    ret[i+1] = '\0';
-    strncpy(target, ret, NUMBER_OF_PIECES_IN_BASHNI+1);
+
+    strncpy(target, ret, NUMBER_OF_PIECES_IN_BASHNI + 1);
 }
 
 
@@ -335,17 +335,17 @@ void towerToString(char *target, coordinate c) {
 void printTopPieces(void) {
     printf("   A B C D E F G H\n");
     printf(" +-----------------+\n");
-    for (int i = NUM_ROWS-1; i >= 0; i--) {
-        printf("%d| ", i+1);
+    for (int i = NUM_ROWS - 1; i >= 0; i--) {
+        printf("%d| ", i + 1);
         for (int j = 0; j < NUM_ROWS; j++) {
-            if (getPointerToSquare(numsToCoord(j, i)) == (tower *)NULL) {
+            if (getPointerToSquare(numsToCoord(j, i)) == (tower *) NULL) {
                 if (j % 2 == i % 2) printf("_ ");
                 else printf(". ");
             } else {
                 printf("%c ", getTopPiece(numsToCoord(j, i)));
             }
         }
-        printf("|%d\n", i+1);
+        printf("|%d\n", i + 1);
     }
     printf(" +-----------------+\n");
     printf("   A B C D E F G H\n");
@@ -361,8 +361,8 @@ void printFull(void) {
         for (int j = 0; j < NUM_ROWS; j++) {
             char topPiece = getTopPiece(numsToCoord(i, j));
             if (topPiece == 'w' || topPiece == 'W') {
-                char towerBuffer[NUMBER_OF_PIECES_IN_BASHNI+1];
-                char coordinateBuffer[COORDINATE_LENGTH+1];
+                char towerBuffer[NUMBER_OF_PIECES_IN_BASHNI + 1];
+                char coordinateBuffer[COORDINATE_LENGTH + 1];
                 towerToString(towerBuffer, numsToCoord(i, j));
                 coordToCode(coordinateBuffer, numsToCoord(i, j));
                 printf("%s: %s\n", coordinateBuffer, towerBuffer);
@@ -376,8 +376,8 @@ void printFull(void) {
         for (int j = 0; j < NUM_ROWS; j++) {
             char topPiece = getTopPiece(numsToCoord(j, i));
             if (topPiece == 'b' || topPiece == 'B') {
-                char towerBuffer[NUMBER_OF_PIECES_IN_BASHNI+1];
-                char coordinateBuffer[COORDINATE_LENGTH+1];
+                char towerBuffer[NUMBER_OF_PIECES_IN_BASHNI + 1];
+                char coordinateBuffer[COORDINATE_LENGTH + 1];
                 towerToString(towerBuffer, numsToCoord(j, i));
                 coordToCode(coordinateBuffer, numsToCoord(j, i));
                 printf("%s: %s\n", coordinateBuffer, towerBuffer);
@@ -396,7 +396,7 @@ int addToSquare(coordinate c, char piece) {
     } else {
         tower *pNewTower;
         pNewTower = towerAlloc();
-        if (pNewTower == (tower *)NULL) {return -1;}
+        if (pNewTower == (tower *) NULL) { return -1; }
 
         pNewTower->piece = piece;
         pNewTower->next = getPointerToSquare(c);
@@ -425,7 +425,7 @@ int checkMove(coordinate origin, coordinate target) {
         return -1; // ungültige Zielkoordinate
     } else if (origin.xCoord == target.xCoord && origin.yCoord == target.yCoord) {
         return -1; // Ziel- und Ursprungskoordiante gleich
-    } else if (abs(origin.xCoord-target.xCoord) != abs(origin.yCoord-target.yCoord)) {
+    } else if (abs(origin.xCoord - target.xCoord) != abs(origin.yCoord - target.yCoord)) {
         return -1; // Ziel- und Ursprungskoordinate liegen nicht auf einer Diagonale
     } else if (getPointerToSquare(origin) == NULL) {
         return -1; // Ursprungsfeld ist leer
@@ -433,7 +433,7 @@ int checkMove(coordinate origin, coordinate target) {
         return -1; // Zielfeld ist NICHT leer
     } else {
         char originTopPiece = getTopPiece(origin);
-        int originTargetSignedYDistance = target.yCoord-origin.yCoord;
+        int originTargetSignedYDistance = target.yCoord - origin.yCoord;
         if (originTopPiece == 'w' && originTargetSignedYDistance != 1) {
             return -1; // ein normaler weißer Turm darf nur genau ein Feld diagonal vorwärts (in positive Y-Richtung) ziehen
         } else if (originTopPiece == 'b' && originTargetSignedYDistance != -1) {
@@ -442,8 +442,8 @@ int checkMove(coordinate origin, coordinate target) {
     }
 
     // überprüft alle Felder zwischen Origin und Victim
-    int xDirection = getSign(target.xCoord-origin.xCoord);
-    int yDirection = getSign(target.yCoord-origin.yCoord);
+    int xDirection = getSign(target.xCoord - origin.xCoord);
+    int yDirection = getSign(target.yCoord - origin.yCoord);
     int i = origin.xCoord + xDirection;
     int j = origin.yCoord + yDirection;
     while (i != target.xCoord) {
@@ -466,7 +466,7 @@ void moveTower(coordinate origin, coordinate target) {
     pBoard[NUM_ROWS * origin.yCoord + origin.xCoord] = NULL;
 
     // evtl. Verwandlung in Dame
-    if (getTopPiece(target) == 'w' && target.yCoord == NUM_ROWS-1) {
+    if (getTopPiece(target) == 'w' && target.yCoord == NUM_ROWS - 1) {
         getPointerToSquare(target)->piece = 'W';
         justConvertedToQueen = true;
     } else if (getTopPiece(target) == 'b' && target.yCoord == 0) {
@@ -492,8 +492,8 @@ void undoMoveTower(coordinate origin, coordinate target) {
 /* Gegeben die Koordinaten für origin und target, berechnet die Koordinaten für Victim (d.h. ein Feld vor Target aus der Richtung, in der Origin ist).
  * Liefert vermutlich kein richtiges Ergebnis, wenn origin und target nicht auf einer Diagonale stehen -> vorher prüfen. */
 coordinate computeVictim(coordinate origin, coordinate target) {
-    int xDirection = getSign(target.xCoord-origin.xCoord);
-    int yDirection = getSign(target.yCoord-origin.yCoord);
+    int xDirection = getSign(target.xCoord - origin.xCoord);
+    int yDirection = getSign(target.yCoord - origin.yCoord);
     coordinate victim;
     victim.xCoord = target.xCoord - xDirection;
     victim.yCoord = target.yCoord - yDirection;
@@ -510,12 +510,12 @@ int checkCapture(coordinate origin, coordinate target) {
         return -1; // ungültige Zielkoordinate
     } else if (origin.xCoord == target.xCoord && origin.yCoord == target.yCoord) {
         return -1; // Ursprungs- und Zielfeld sind gleich
-    } else if (abs(origin.xCoord-target.xCoord) != abs(origin.yCoord-target.yCoord)) {
+    } else if (abs(origin.xCoord - target.xCoord) != abs(origin.yCoord - target.yCoord)) {
         return -1; // Ursprungs- und Zielfeld liegen nicht auf einer Diagonale
     }
 
     char originTopPiece = getTopPiece(origin);
-    int originTargetDistance = abs(origin.xCoord-target.xCoord);
+    int originTargetDistance = abs(origin.xCoord - target.xCoord);
     if ((originTopPiece == 'b' || originTopPiece == 'w') && originTargetDistance != DISTANCE_FOR_VALID_CAPTURE) {
         return -1; // Um mit einem normalen Turm zu schlagen, müssen Ursprungs- und Zielfeld diagonal genau zwei Felder entfernt sein.
     } else if ((originTopPiece == 'B' || originTopPiece == 'W') && originTargetDistance < DISTANCE_FOR_VALID_CAPTURE) {
@@ -531,8 +531,8 @@ int checkCapture(coordinate origin, coordinate target) {
     }
 
     // überprüft alle Felder zwischen Origin und Victim
-    int xDirection = getSign(target.xCoord-origin.xCoord);
-    int yDirection = getSign(target.yCoord-origin.yCoord);
+    int xDirection = getSign(target.xCoord - origin.xCoord);
+    int yDirection = getSign(target.yCoord - origin.yCoord);
     int i = origin.xCoord + xDirection;
     int j = origin.yCoord + yDirection;
     while (i != victim.xCoord) {
@@ -593,14 +593,16 @@ bool isInDanger(coordinate square) {
         yDirection *= -1;
         coordinate potentialOpponentPiece;
 
-        for (int i = 1; i <= NUM_ROWS-1-1; i++) { // 6, weil Bashni insgesamt 8 Felder pro Diagonale hat; mit 1 Feld für square und 1 für dahinter bleiben noch 6 Felder, an denen ein schlagender Stein stehen könnte
+        // 6, weil Bashni insgesamt 8 Felder pro Diagonale hat; mit 1 Feld für square und 1 für dahinter bleiben noch 6 Felder, an denen ein schlagender Stein stehen könnte
+        for (int i = 1; i <= NUM_ROWS - 1 - 1; i++) {
             potentialOpponentPiece = numsToCoord(square.xCoord + i * xDirection, square.yCoord + i * yDirection);
 
             if (potentialOpponentPiece.xCoord == -1 || potentialOpponentPiece.yCoord == -1) {
                 break; // wenn dieses Feld ungültige Koordinate -> schon über Spielbrettrand -> in dieser Richtung sicher
             } else if (getPointerToSquare(potentialOpponentPiece) == NULL) {
                 continue; // wenn auf diesem Feld nichts -> nächste Iteration, prüfe das Feld dahinter
-            } else if (getTopPiece(potentialOpponentPiece) == ownNormalTower || getTopPiece(potentialOpponentPiece) == ownQueenTower) {
+            } else if (getTopPiece(potentialOpponentPiece) == ownNormalTower ||
+                       getTopPiece(potentialOpponentPiece) == ownQueenTower) {
                 break; // wenn auf diesem Feld ein eigener Turm steht -> in dieser Richtung sicher
             } else if (checkCapture(potentialOpponentPiece, behind) == 0) {
                 return true; // wenn potentialOpponentPiece schlagen kann -> gefährdet, also true
@@ -617,16 +619,16 @@ int howManyInDangerOwn(void) {
 
     for (int i = 0; i < NUM_ROWS; i++) {
         for (int j = 0; j < NUM_ROWS; j++) { // Iteration über alle Spielfelder
-            coordinate thisCoord = numsToCoord(i,j);
+            coordinate thisCoord = numsToCoord(i, j);
             char topPieceHere = getTopPiece(thisCoord);
             if (topPieceHere != ownNormalTower && topPieceHere != ownQueenTower) {
                 continue; // überspringen, wenn auf Spielfeld kein eigener Turm steht
             }
             if (isInDanger(thisCoord)) {
                 if (topPieceHere == ownNormalTower) {
-                    countTotalInDanger += 1; // wenn topPieceHere ein normaler Turm ist -> countTotalInDanger um 1 erhöhen
+                    countTotalInDanger += 1; // wenn normaler Turm, countTotalInDanger um 1 erhöhen
                 } else {
-                    countTotalInDanger += QUEEN_TO_NORMAL_RATIO * 1; // wenn topPieceHere eine Dame ist -> zählt mehrfach
+                    countTotalInDanger += QUEEN_TO_NORMAL_RATIO * 1; // wenn Dame, zählt mehrfach
                 }
             }
         }
@@ -663,7 +665,8 @@ void captureTower(coordinate origin, coordinate target) {
     coordinate victim = computeVictim(origin, target);
 
     // erstelle Pointer für die neuen Türme
-    tower *pNewVictimTower = getPointerToSquare(victim)->next; // neuer Victim-Turm ist alter Victim, bis auf den obersten Spielstein
+    tower *pNewVictimTower = getPointerToSquare(
+            victim)->next; // neuer Victim-Turm ist alter Victim, bis auf den obersten Spielstein
     tower *pTowerForTarget = getPointerToSquare(origin); // neuer Target-Turm ist erstmal nur der alte Origin-Turm
 
     // durchgehen bis zum untersten Spielstein des neuen Target-Turms
@@ -672,7 +675,8 @@ void captureTower(coordinate origin, coordinate target) {
         pCurrent = pCurrent->next;
     }
 
-    pCurrent->next = getPointerToSquare(victim); // fügt den obersten Spielstein von Victim an das untere Ende des neuen Target-Turms hinzu
+    pCurrent->next = getPointerToSquare(
+            victim); // fügt den obersten Spielstein von Victim an das untere Ende des neuen Target-Turms hinzu
     pCurrent->next->next = NULL; // next-Pointer auf NULL setzen, sonst würde man den kompletten Victim-Turm hinzufügen
 
     // die neuen Türme aufs Brett setzen
@@ -681,7 +685,7 @@ void captureTower(coordinate origin, coordinate target) {
     pBoard[NUM_ROWS * origin.yCoord + origin.xCoord] = NULL;
 
     // evtl. Verwandlung in Dame
-    if (getTopPiece(target) == 'w' && target.yCoord == NUM_ROWS-1) {
+    if (getTopPiece(target) == 'w' && target.yCoord == NUM_ROWS - 1) {
         getPointerToSquare(target)->piece = 'W';
         justConvertedToQueen = true;
     } else if (getTopPiece(target) == 'b' && target.yCoord == 0) {
@@ -715,11 +719,14 @@ void undoCaptureTower(coordinate origin, coordinate target) {
     pBottomPieceOfTarget = pCurrent->next; // so bekommen wir den untersten Spielstein von Target
     pCurrent->next = NULL; // indem der next-Pointer auf NULL gesetzt wird, wird der unterste Spielstein vom Target-Turm entfernt
 
-    pBottomPieceOfTarget->next = getPointerToSquare(victim); // an den untersten Spielstein von Target wird der ganze Victim-Turm angefügt -> rekonstruiert den Victim-Turm, wie er vorher war
-    pBoard[NUM_ROWS * victim.yCoord+victim.xCoord] = pBottomPieceOfTarget; // rekonstruierter Victim-Turm auf Feld Victim stellen
+    pBottomPieceOfTarget->next = getPointerToSquare(
+            victim); // an den untersten Spielstein von Target wird der ganze Victim-Turm angefügt -> rekonstruiert den Victim-Turm, wie er vorher war
+    pBoard[NUM_ROWS * victim.yCoord +
+           victim.xCoord] = pBottomPieceOfTarget; // rekonstruierter Victim-Turm auf Feld Victim stellen
 
-    pBoard[NUM_ROWS * origin.yCoord+origin.xCoord] = getPointerToSquare(target); // der restliche Turm auf Target kommt zurück nach Origin
-    pBoard[NUM_ROWS * target.yCoord+target.xCoord] = NULL; // auf Target steht dann nichts mehr
+    pBoard[NUM_ROWS * origin.yCoord + origin.xCoord] = getPointerToSquare(
+            target); // der restliche Turm auf Target kommt zurück nach Origin
+    pBoard[NUM_ROWS * target.yCoord + target.xCoord] = NULL; // auf Target steht dann nichts mehr
 }
 
 /* Berechnet das "Gewicht" eines Turms an einer gegebenen Koordinate. Dieses "Gewicht" soll ein Maß für die
@@ -766,7 +773,8 @@ float evaluateMove(coordinate origin, coordinate target) {
     int piecesInDangerOwnAfter = howManyInDangerOwn();
     int dangerDifferenceOwn = piecesInDangerOwnAfter - piecesInDangerOwnPrev;
     if (dangerDifferenceOwn > 0) printf(" * Mit diesem Zug bringe ich einen meiner Spielsteine in Gefahr...\n");
-    else if (dangerDifferenceOwn < 0) printf(" * Mit diesem Zug bringe ich einen eigenen gefährdeten Spielstein in Sicherheit.\n");
+    else if (dangerDifferenceOwn < 0)
+        printf(" * Mit diesem Zug bringe ich einen eigenen gefährdeten Spielstein in Sicherheit.\n");
     rating -= OWN_ENDANGERMENT_FACTOR * dangerDifferenceOwn;
 
     int piecesInDangerOppAfter = howManyInDangerOpponent();
@@ -792,8 +800,8 @@ float evaluateMove(coordinate origin, coordinate target) {
 
 /* Gegeben eine Koordinate, an der ein Turm steht. Testet, an welche Felder der Turm verschoben werden kann. */
 move tryAllMoves(coordinate origin) {
-    char strOrigin[COORDINATE_LENGTH+1];
-    char strTarget[COORDINATE_LENGTH+1];
+    char strOrigin[COORDINATE_LENGTH + 1];
+    char strTarget[COORDINATE_LENGTH + 1];
     int newX, newY;
     coordToCode(strOrigin, origin);
 
@@ -939,7 +947,8 @@ float evaluateCapture(coordinate origin, coordinate target, bool verbose) {
     captureTower(origin, target);
 
     move potentialNextMove = tryCaptureAgain(origin, target, false);
-    if (potentialNextMove.origin.xCoord != potentialNextMove.target.xCoord || potentialNextMove.origin.yCoord != potentialNextMove.target.yCoord) {
+    if (potentialNextMove.origin.xCoord != potentialNextMove.target.xCoord ||
+        potentialNextMove.origin.yCoord != potentialNextMove.target.yCoord) {
         if (verbose) {
             printf(" * Dieser Schlag ist gut, weil ich danach noch weiterschlagen kann.\n");
         }
@@ -988,8 +997,8 @@ float evaluateCapture(coordinate origin, coordinate target, bool verbose) {
  * verbose deaktiviert die Kommandozeilenausgabe der Bewertungsstrings. Siehe Kommentar zu evaluateCapture, warum
  * das wünschenswert ist.*/
 move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
-    char strOrigin[COORDINATE_LENGTH+1];
-    char strTarget[COORDINATE_LENGTH+1];
+    char strOrigin[COORDINATE_LENGTH + 1];
+    char strTarget[COORDINATE_LENGTH + 1];
     int newX, newY;
     coordToCode(strOrigin, origin);
 
@@ -1084,12 +1093,11 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
 
                 coordinate possibleTarget = numsToCoord(newX, newY);
 
-                if (checkCapture(origin, possibleTarget) != 0) {
-                    continue; // wenn dieser Schlag ungültig -> nächste Iteration, d.h. überprüfe Schlag auf das Feld eins dahinter
-                }
+                // wenn dieser Schlag ungültig -> nächste Iteration, d.h. überprüfe Schlag auf das Feld eins dahinter
+                if (checkCapture(origin, possibleTarget) != 0) { continue; }
 
                 coordToCode(strTarget, possibleTarget);
-                if (verbose) printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+                if (verbose) { printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget); }
 
                 rating = evaluateCapture(origin, possibleTarget, verbose);
                 if (rating > bestMove.rating) {
@@ -1140,10 +1148,10 @@ void think(char *answer) {
     // versuche erst, einen gültigen Schlag-Teilzug zu finden
     for (int i = 0; i < NUM_ROWS; i++) {
         for (int j = 0; j < NUM_ROWS; j++) {
-            if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
+            if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i, j)) != ownQueenTower) {
                 continue;
             }
-            thisMove = tryAllCaptures(numsToCoord(i,j));
+            thisMove = tryAllCaptures(numsToCoord(i, j));
             if (thisMove.rating > overallBestMove.rating) {
                 overallBestMove.origin = thisMove.origin;
                 overallBestMove.target = thisMove.target;
@@ -1153,7 +1161,8 @@ void think(char *answer) {
     }
 
     // wenn ein gültiger Schlag-Teilzug gefunden werden kann: in answer schreiben, danach in Schleife nach weiteren Teilzügen vom Zielfeld aus suchen
-    if (overallBestMove.origin.xCoord != -1 && overallBestMove.origin.yCoord != -1 && overallBestMove.target.xCoord != -1 && overallBestMove.target.yCoord != -1) {
+    if (overallBestMove.origin.xCoord != -1 && overallBestMove.origin.yCoord != -1 &&
+        overallBestMove.target.xCoord != -1 && overallBestMove.target.yCoord != -1) {
         coordToCode(answer, overallBestMove.origin);
         answer[answerCounter + COORDINATE_LENGTH] = ':';
         coordToCode(answer + COORDINATE_LENGTH + 1, overallBestMove.target);
@@ -1162,14 +1171,15 @@ void think(char *answer) {
         bool moreCapturesLoop = true;
 
         while (moreCapturesLoop) {
-            printf("\nVerwende den Teilzug %s und suche weiter:\n", answer+(answerCounter-5));
+            printf("\nVerwende den Teilzug %s und suche weiter:\n", answer + (answerCounter - 5));
             // führe den besten Zug tatsächlich aus
             captureTower(overallBestMove.origin, overallBestMove.target);
             justConvertedToQueen = false;
 
             overallBestMove = tryCaptureAgain(overallBestMove.origin, overallBestMove.target, true);
 
-            if (overallBestMove.origin.xCoord == overallBestMove.target.xCoord && overallBestMove.origin.yCoord == overallBestMove.target.yCoord) {
+            if (overallBestMove.origin.xCoord == overallBestMove.target.xCoord &&
+                overallBestMove.origin.yCoord == overallBestMove.target.yCoord) {
                 // kein weiteres Schlagen mehr möglich
                 printf("Von hier ist kein weiterer Teilzug möglich.\n");
                 moreCapturesLoop = false;
@@ -1184,10 +1194,11 @@ void think(char *answer) {
     } else { // kein Schlag-Teilzug gefunden -> suche Beweg-Zug
         for (int i = 0; i < NUM_ROWS; i++) {
             for (int j = 0; j < NUM_ROWS; j++) {
-                if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i,j)) != ownQueenTower) {
+                if (getTopPiece(numsToCoord(i, j)) != ownNormalTower &&
+                    getTopPiece(numsToCoord(i, j)) != ownQueenTower) {
                     continue;
                 }
-                thisMove = tryAllMoves(numsToCoord(i,j));
+                thisMove = tryAllMoves(numsToCoord(i, j));
                 if (thisMove.rating > overallBestMove.rating) {
                     overallBestMove.origin = thisMove.origin;
                     overallBestMove.target = thisMove.target;
@@ -1204,6 +1215,7 @@ void think(char *answer) {
 
     answer[answerCounter] = '\n'; // answer braucht am Ende ein Newline, sonst wird die Nachricht in mainloop_filehandler liegengelassen
 }
+
 // Räumt auf: gemallocten Speicher freigeben, Shmemory-Segmente löschen.
 int cleanupThinkerfunctions(void) {
     int ret = 0;
