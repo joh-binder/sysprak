@@ -13,6 +13,7 @@
 #define MOVE_BUFFER 256
 #define GAME_ID_LENGTH 13
 
+static int fd[2];
 static bool sigFlagMoves = false;
 static int shmidGeneralInfo = -1;
 static int shmidPlayerInfo = -1;
@@ -24,9 +25,9 @@ int hostnameToIp(char *ipA, char *hostname) {
     struct hostent *host;
 
     host = gethostbyname(hostname);
-    if (host==NULL){
+    if (host == NULL) {
         herror("Konnte Rechner nicht finden");
-	return -1;
+        return -1;
     }
 
     addr_list = (struct in_addr **) host->h_addr_list;
@@ -37,24 +38,30 @@ int hostnameToIp(char *ipA, char *hostname) {
     return 0;
 }
 
-/* Räumt auf: gemallocten Speicher freigeben, Shmemory-Segmente löschen.
- * Ruft auch cleanupThinkerfunctions auf, sodass auch dort saubergemacht wird.
- * Im Fehlerfall wird nicht sofort -1 zurückgegeben, sondern erst am Ende der Funktion, weil versucht werden soll,
- * zumindest noch andere Stellen aufzuräumen. */
-int cleanupMain(void) {
-    int ret = 0;
-
-    if (cleanupThinkerfunctions() == -1) ret = -1;
+/* Räumt auf: Ruft cleanupThinkerfunctions auf, damit auch dort saubergemacht wird. Entfernt die Shmemory-Segmente für
+ * allgemeine Infos und Spielerinfos. Schließt die Pipeenden. */
+void cleanupMain(void) {
+    if (cleanupThinkerfunctions() == -1) { fprintf(stderr, "Fehler beim Aufräumen im Thinker\n"); }
 
     if (shmidGeneralInfo != -1) {
-        if (shmDelete(shmidGeneralInfo) > 0) ret = -1;
+        if (shmDelete(shmidGeneralInfo) > 0) { fprintf(stderr, "Fehler beim Aufräumen in main: Konnte shmidGeneralInfo nicht entfernen\n"); }
+        else { shmidGeneralInfo = -1; }
     }
 
     if (shmidPlayerInfo != -1) {
-        if (shmDelete(shmidPlayerInfo) > 0) ret = -1;
+        if (shmDelete(shmidPlayerInfo) > 0) { fprintf(stderr, "Fehler beim Aufräumen in main: Konnte shmidPlayerInfo nicht entfernen\n"); }
+        else { shmidPlayerInfo = -1; }
     }
 
-    return ret;
+    if (fd[0] != -1) {
+        if (close(fd[0]) != 0) { perror("Fehler beim Aufräumen: Konnte Pipeende 0 nicht schließen"); }
+        else { fd[0] = -1; }
+    }
+
+    if (fd[1] != -1) {
+        if (close(fd[1]) != 0) { perror("Fehler beim Aufräumen: Konnte Pipeende 1 nicht schließen"); }
+        else { fd[1] = -1; }
+    }
 }
 
 // signal handler Ctrl-C
@@ -72,15 +79,15 @@ void sigHandlerMoves(int sig_nr) {
 
 int main(int argc, char *argv[]) {
 
-	// Signalhandler der Main Methode registrieren
-	if (signal(SIGINT, sigHandlerCtrlC) == SIG_ERR) {
-		fprintf(stderr, "Fehler! Der Signal-Handler konnte nicht registriert werden.\n");
-		cleanupMain();
-		return EXIT_FAILURE;
-	}
+    // Signalhandler der Main Methode registrieren
+    if (signal(SIGINT, sigHandlerCtrlC) == SIG_ERR) {
+        perror("Fehler! Der Signal-Handler konnte nicht registriert werden");
+        cleanupMain();
+        return EXIT_FAILURE;
+    }
 
     // legt Variablen für Game-ID, Spielernummer und Pfad der Konfigurationsdatei an
-    char gameID[GAME_ID_LENGTH+1] = "";
+    char gameID[GAME_ID_LENGTH + 1] = "";
     int wantedPlayerNumber = 0;
     char *confFilePath = "client.conf";
 
@@ -134,8 +141,6 @@ int main(int argc, char *argv[]) {
     setUpShmemPointers(pGeneralInfo, pPlayerInfo);
 
     // Erstellung der Pipe
-    int fd[2];
-
     if (pipe(fd) < 0) {
         perror("Fehler beim Erstellen der Pipe");
         cleanupMain();
@@ -151,7 +156,10 @@ int main(int argc, char *argv[]) {
 
     } else if (pid == 0) {
         // wir sind im Kindprozess -> Connector
-        close(fd[1]); // schließt Schreibende der Pipe
+
+        // schließt Schreibende der Pipe
+        if (close(fd[1]) != 0) { perror("Fehler beim Schließen von Pipeende 1"); } // kein kritischer Fehler -> weitermachen
+        fd[1] = -1;
 
         // schreibt die Connector-PID in das Struct mit den gemeinsamen Spielinformationen
         pGeneralInfo->pidConnector = getpid();
@@ -165,7 +173,7 @@ int main(int argc, char *argv[]) {
         if (hostnameToIp(ip, configInfo.hostName) == -1) {
             cleanupMain();
             return EXIT_FAILURE;
-	    }
+        }
 
         // Socket erstellen
         if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -179,7 +187,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Fehler! Connect schiefgelaufen. \n");
             cleanupMain();
             close(sock);
-	        return EXIT_FAILURE;
+            return EXIT_FAILURE;
         }
 
         mainloop_epoll(sock, fd, gameID, wantedPlayerNumber);
@@ -188,17 +196,20 @@ int main(int argc, char *argv[]) {
 
     } else {
         // wir sind im Elternprozess -> Thinker
-        close(fd[0]); // schließt Leseende der Pipe
+
+        // schließt Leseende der Pipe
+        if (close(fd[0]) != 0) { perror("Fehler beim Schließen von Pipeende 0"); } // kein kritischer Fehler -> weitermachen
+        fd[0] = -1;
 
         // schreibt die Thinker-PID in das Struct mit den gemeinsamen Spielinformationen
         pGeneralInfo->pidThinker = getpid();
 
         // Handler registrieren
-    	if (signal(SIGUSR1, sigHandlerMoves) == SIG_ERR) {
-    	    fprintf(stderr, "Fehler! Der Signal-Handler konnte nicht registriert werden.\n");
-    	    cleanupMain();
-    	    return EXIT_FAILURE;
-    	}
+        if (signal(SIGUSR1, sigHandlerMoves) == SIG_ERR) {
+            perror( "Fehler! Der Signal-Handler konnte nicht registriert werden");
+            cleanupMain();
+            return EXIT_FAILURE;
+        }
 
         pause();
 
@@ -216,7 +227,7 @@ int main(int argc, char *argv[]) {
 
         char moveString[MOVE_BUFFER] = "";
 
-        while(pGeneralInfo->isActive){
+        while (pGeneralInfo->isActive) {
             if (sigFlagMoves && pGeneralInfo->newMoveInfoAvailable) {
                 pGeneralInfo->newMoveInfoAvailable = false;
                 sigFlagMoves = false;
@@ -256,7 +267,7 @@ int main(int argc, char *argv[]) {
         printf("Der Thinker beendet sich jetzt auch.\n");
 
         // Aufräumarbeiten
-        if (cleanupMain() != 0) fprintf(stderr, "Fehler beim Aufräumen\n");
+        cleanupMain();
         wait(NULL);
     }
 
