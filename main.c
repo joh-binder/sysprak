@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 
     // legt Variablen für Game-ID, Spielernummer und Pfad der Konfigurationsdatei an
     char gameID[GAME_ID_LENGTH + 1] = "";
-    int wantedPlayerNumber = 0;
+    int wantedPlayerNumber = -1;
     char *confFilePath = "client.conf";
 
     // liest Werte für die eben angelegten Variablen von der Kommandozeile ein
@@ -101,6 +101,14 @@ int main(int argc, char *argv[]) {
                 break;
             case 'p':
                 wantedPlayerNumber = atoi(optarg);
+                if (wantedPlayerNumber <= 0) {
+                    // prüft nur, ob Spielernummer 0 (auch durch Nicht-Int als Eingabe) oder negativ ist
+                    // alle positiven Ints werden hier durchgelassen -> Erweiterbarkeit auf mehr Spieler
+                    fprintf(stderr, "Fehler! Ungültige Spielernummer.\n");
+                    printHelp();
+                    return EXIT_FAILURE;
+                }
+                wantedPlayerNumber--; // übergebene Spielernummern sind 1-2, aber der Server will 0-1
                 break;
             case 'c':
                 confFilePath = optarg;
@@ -111,18 +119,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // überprüft die übergebenen Parameter auf Gültigkeit: gameID nicht leer, wantedPayerNumber > 0
+    // erzwingt, dass eine Game-ID angegeben wurde -> bricht sonst Programm ab
     if (strcmp(gameID, "") == 0) {
-        fprintf(stderr, "Fehler! Spielernummer nicht angegeben oder ungültig.\n");
+        fprintf(stderr, "Fehler! Spielernummer nicht angegeben.\n");
         printHelp();
         return EXIT_FAILURE;
     }
-    if (wantedPlayerNumber < 0) {
-        fprintf(stderr, "Fehler! Ungültige Spielernummer.\n");
-        printHelp();
-        return EXIT_FAILURE;
-    }
-    wantedPlayerNumber--; // übergebene Spielernummern sind 1-2, aber der Server will 0-1
 
     // öffnet confFilePath und schreibt die dortigen Konfigurationswerte in das Struct configInfo
     struct cnfgInfo configInfo;
