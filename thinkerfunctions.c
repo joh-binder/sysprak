@@ -239,6 +239,10 @@ int setUpMemoryForThinker(struct gameInfo *pG) {
         return -1;
     }
     pMoveInfo = shmAttach(shmidMoves);
+    if (pMoveInfo == NULL) {
+        fprintf(stderr, "Fehler beim Versuch, im Thinker das Shmemory-Segment für die Spielzüge anzubinden.\n");
+        return -1;
+    }
 
     // genug Speicherplatz für das Spielbrett freigeben
     pBoard = malloc(sizeof(tower *) * NUM_ROWS * NUM_ROWS);
@@ -315,19 +319,25 @@ char getTopPiece(coordinate c) {
  * Repräsentiert alle Spielsteine, aus denen der Turm an der angegebenen Kooordinate besteht, als Folge von Buchstaben
  * (z.B. Bwwbw) und schreibt das Ergebnis in den String. */
 void towerToString(char *target, coordinate c) {
-    char ret[NUMBER_OF_PIECES_IN_BASHNI + 1]; // Ergebnisstring
-    memset(ret, 0, NUMBER_OF_PIECES_IN_BASHNI + 1);
     tower *pCurrent = getPointerToSquare(c); // Pointer auf den aktuellen Turm (anfangs der komplette Turm)
 
-    int i = 0;
-    while (i < NUMBER_OF_PIECES_IN_BASHNI) {
-        if (pCurrent == NULL) break;
-        ret[i] = pCurrent->piece; // obersten Spielstein dieses Turms in Ergebnisstring schreiben
-        pCurrent = pCurrent->next; // danach ist aktueller Turm nur noch alle darunterliegenden Steine
-        i++;
-    }
+    if (pCurrent == NULL) {
+        fprintf(stderr, "Fehler! Zu dieser Koordinate konnte kein Turm gefunden werden.\n");
+        strncpy(target, "ERROR\n", NUMBER_OF_PIECES_IN_BASHNI + 1);
+    } else {
+        char ret[NUMBER_OF_PIECES_IN_BASHNI + 1]; // Ergebnisstring
+        memset(ret, 0, NUMBER_OF_PIECES_IN_BASHNI + 1);
 
-    strncpy(target, ret, NUMBER_OF_PIECES_IN_BASHNI + 1);
+        int i = 0;
+        while (i < NUMBER_OF_PIECES_IN_BASHNI) {
+            if (pCurrent == NULL) { break; }
+            ret[i] = pCurrent->piece; // obersten Spielstein dieses Turms in Ergebnisstring schreiben
+            pCurrent = pCurrent->next; // danach ist aktueller Turm nur noch alle darunterliegenden Steine
+            i++;
+        }
+
+        strncpy(target, ret, NUMBER_OF_PIECES_IN_BASHNI + 1);
+    }
 }
 
 
