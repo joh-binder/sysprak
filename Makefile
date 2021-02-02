@@ -4,25 +4,25 @@ CONFIG ?= "client.conf"
 
 .PHONY: play clean
 
-sysprak-client: main.o mainloop.o util.o shmfunctions.o config.o thinkerfunctions.o
+sysprak-client: main.o mainloop.o shmfunctions.o config.o thinkerfunctions.o util.o 
 	$(CC) $(CFLAGS) $^ -o $@
 
-main.o: main.c
-	$(CC) $(CFLAGS) -c $^
-
-mainloop.o: mainloop.c mainloop.h
+main.o: main.c mainloop.h shmfunctions.h thinkerfunctions.h config.h
 	$(CC) $(CFLAGS) -c $<
 
-util.o: util.c util.h
+mainloop.o: mainloop.c mainloop.h shmfunctions.h util.h
 	$(CC) $(CFLAGS) -c $<
 
-shmfunctions.o: shmfunctions.c shmfunctions.h
+shmfunctions.o: shmfunctions.c shmfunctions.h util.h
 	$(CC) $(CFLAGS) -c $<
 
 config.o: config.c config.h
 	$(CC) $(CFLAGS) -c $<
 
-thinkerfunctions.o: thinkerfunctions.c thinkerfunctions.h
+thinkerfunctions.o: thinkerfunctions.c thinkerfunctions.h shmfunctions.h util.h
+	$(CC) $(CFLAGS) -c $<
+
+util.o: util.c util.h
 	$(CC) $(CFLAGS) -c $<
 
 play: sysprak-client
