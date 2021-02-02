@@ -16,7 +16,7 @@ mainloop.o: mainloop.c mainloop.h shmfunctions.h util.h
 shmfunctions.o: shmfunctions.c shmfunctions.h util.h
 	$(CC) $(CFLAGS) -c $<
 
-config.o: config.c config.h
+config.o: config.c config.h util.h
 	$(CC) $(CFLAGS) -c $<
 
 thinkerfunctions.o: thinkerfunctions.c thinkerfunctions.h shmfunctions.h util.h
@@ -38,3 +38,4 @@ endif
 
 clean:
 	rm -f sysprak-client main.o mainloop.o util.o shmfunctions.o config.o thinkerfunctions.o
+

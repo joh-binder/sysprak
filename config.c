@@ -1,7 +1,6 @@
 #include <stdio.h>
-#include <string.h>
 #include "config.h"
-#include <stdlib.h>
+#include "util.h"
 
 #define CONFIG_BUFFER_SIZE 256
 
