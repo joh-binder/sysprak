@@ -169,7 +169,8 @@ void mainloop_sockline(char* line){
 
     // Erwartet: + PLAYING Bashni
     } else if (current_state == EXPECT_GAME_KIND_NAME) {
-        strncpy(gamekindserver, line + 10, MAX_LEN);
+        strncpy(gamekindserver, line + 10, MAX_LEN - 2);
+        gamekindserver[MAX_LEN - 1] = '\0';
         if (strcmp(gamekindserver, "Bashni") != 0) {
             fprintf(stderr, "Fehler! Falsche Spielart. Spiel des Clients: %s. Spiel des Servers: %s. Client wird beendet.\n", GAMEKINDNAME, gamekindserver);
             mainloop_cleanup();
@@ -195,8 +196,10 @@ void mainloop_sockline(char* line){
         }
 
         // überträgt die allgemeinen Spielinfos in den Shmemory-Bereich
-        strncpy(pGeneralInfo->gameKindName, gamekindserver, MAX_LENGTH_NAMES);
-        strncpy(pGeneralInfo->gameName, gamename, MAX_LENGTH_NAMES);
+        strncpy(pGeneralInfo->gameKindName, gamekindserver, MAX_LENGTH_NAMES - 2);
+        pGeneralInfo->gameKindName [MAX_LENGTH_NAMES - 1] = '\0';
+        strncpy(pGeneralInfo->gameName, gamename, MAX_LENGTH_NAMES - 2);
+        pGeneralInfo->gameName [MAX_LENGTH_NAMES - 1] = '\0';
 
         current_state = EXPECT_OWN_PLAYER_INFO;
 
@@ -258,6 +261,7 @@ void mainloop_sockline(char* line){
                 }
                 // schreibt line außer die letzten zwei Zeichen nach playerName
                 strncpy(oppInfo[countOpponents-1].playerName, line, strlen(line)-2);
+
                 oppInfo[countOpponents-1].playerName[strlen(line)-2] = '\0';
 
                 // betrachten noch das letzte Zeichen (= Bereit)
