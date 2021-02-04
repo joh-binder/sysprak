@@ -20,7 +20,7 @@ int abs(int a) {
 }
 
 
-int ownWrite(int fd, char buffer[MAX_LEN]){
+int ownWrite(int fd, char buffer[MAX_LEN]) {
     int n;
     while (strlen(buffer) > 0) {
         do
