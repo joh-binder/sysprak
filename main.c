@@ -235,7 +235,9 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
 
-        pause();
+	do {
+        	pause();
+	} while(!pGeneralInfo->newMoveInfoAvailable);
 
         if (!pGeneralInfo->isActive && !pGeneralInfo->prologueSuccessful) {
             printf("Es gab im Connector einen Fehler schon während des Prologs. Der Thinker beendet sich jetzt auch.\n");

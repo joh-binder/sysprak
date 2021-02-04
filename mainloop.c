@@ -102,7 +102,7 @@ void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer
 
 
 
-void mainloop_pipeline(char* line){
+void mainloop_pipeline(char* line) {
 
     char buffer[MAX_LEN];
 
@@ -116,7 +116,7 @@ void mainloop_pipeline(char* line){
 
 
 
-void mainloop_sockline(char* line){
+void mainloop_sockline(char* line) {
 
     char buffer[MAX_LEN];
 
@@ -180,7 +180,7 @@ void mainloop_sockline(char* line){
 
 
     // Erwartet: + <<Game-Name>>
-    } else if (current_state == EXPECT_GAME_NAME){
+    } else if (current_state == EXPECT_GAME_NAME) {
         strncpy(gamename, line+2, MAX_LEN-2);
         gamename[MAX_LEN-1] = '\0';
 
@@ -460,14 +460,14 @@ void mainloop_sockline(char* line){
 
 
 //Bekommt einen Buffer und macht Zeilen daraus, welche an den LineHandler weitergegeben werden
-void mainloop_filehandler(char* buffer, int len, LineBuffer* linebuffer){
+void mainloop_filehandler(char* buffer, int len, LineBuffer* linebuffer) {
 
     memcpy(linebuffer->buffer+linebuffer->filled, buffer, len);
     linebuffer->filled += len;
 
     int oldi = 0;
-    for(int i = 0; i < linebuffer->filled; i++){
-        if(linebuffer->buffer[i] == '\n'){
+    for(int i = 0; i < linebuffer->filled; i++) {
+        if(linebuffer->buffer[i] == '\n') {
             linebuffer->buffer[i] = '\0';
             (*(linebuffer->line))(&(linebuffer->buffer[oldi]));
             oldi = i + 1;
@@ -484,7 +484,7 @@ void mainloop_filehandler(char* buffer, int len, LineBuffer* linebuffer){
 
 
 // Epoll event Loop, um Pipe und Socket zu überwachen
-void mainloop_epoll(int sockfd, int pipefd, char ID[GAME_ID_LENGTH + 1], int playerNum){
+void mainloop_epoll(int sockfd, int pipefd, char ID[GAME_ID_LENGTH + 1], int playerNum) {
 
     char buffersock[MAX_LEN];
     char bufferpipe[MAX_LEN];
@@ -553,7 +553,7 @@ void mainloop_epoll(int sockfd, int pipefd, char ID[GAME_ID_LENGTH + 1], int pla
             } else if (events[n].data.fd == sockfiled) {
                 int bufferlen = read(sockfd, buffersock, MAX_LEN - sockbuffer.filled);
                 mainloop_filehandler(buffersock, bufferlen, &sockbuffer);
-                if(MAX_LEN == sockbuffer.filled){
+                if(MAX_LEN == sockbuffer.filled) {
                     printf("Buffer ist voll und es wurde kein newLine Zeichen gelesen.");
                     mainloop_cleanup();
                     exit(EXIT_FAILURE);
