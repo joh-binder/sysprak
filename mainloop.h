@@ -3,6 +3,8 @@
 
 #include "shmfunctions.h"
 
+#define GAME_ID_LENGTH 13
+
 struct tempPlayerInfo {
     int playerNumber;
     char playerName[1024];
@@ -10,7 +12,7 @@ struct tempPlayerInfo {
 };
 
 //mainloop_epoll muss für den Aufruf in Main.c übergeben werden.
-void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum);
+void mainloop_epoll(int sockfd, int pipefd, char ID[GAME_ID_LENGTH + 1], int playerNum);
 
 /* Die Pointer auf den Shared-Memory-Bereich für die allgemeinen Spielinfos und die Infos zu den einzelnen Spielern
  * müssen einmalig von main an performConnection übergeben werden, damit er dort verfügbar ist. */

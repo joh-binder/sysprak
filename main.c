@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
 
-        mainloop_epoll(sock, fd, gameID, wantedPlayerNumber);
+        mainloop_epoll(sock, fd[0], gameID, wantedPlayerNumber);
 
         close(sock);
 

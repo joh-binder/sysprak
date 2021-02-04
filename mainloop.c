@@ -8,6 +8,7 @@
 #define MAX_EVENTS 2
 #define CLIENTVERSION "2.0"
 #define GAMEKINDNAME "Bashni"
+#define GAME_ID_LENGTH 13
 
 typedef struct
 {
@@ -31,9 +32,9 @@ typedef enum {
     READING_PIECES_REGULAR
 } protocol_state;
 
-int sockfiled = 0;
-int pipefiled = 0;
-char gameID[14];
+int sockfiled = -1;
+int pipefiled = -1;
+char gameID[GAME_ID_LENGTH + 1];
 int wantedPlayerNumber;
 
 //Epoll struct um Server und Pipe gleichzeitig auf eingehende Nachrichten zu überprüfen
@@ -65,11 +66,12 @@ static int ownPlayerNumber;
 
 void mainloop_cleanup(void) {
     pGeneralInfo->isActive = false;
-    if (sockfiled != 0) close(sockfiled);
-    if (pipefiled != 0) close(pipefiled);
+    if (sockfiled != -1) close(sockfiled);
+    if (pipefiled != -1) close(pipefiled);
 
     if (pTempMemoryForPieces != NULL) {
         free(pTempMemoryForPieces);
+        pTempMemoryForPieces = NULL;
     }
 
     // sendet ein Signal an Thinker, damit er am pause vorbeikommt und sich auch beenden kann
@@ -105,8 +107,9 @@ void mainloop_pipeline(char* line){
     char buffer[MAX_LEN];
 
     memset(buffer, 0, MAX_LEN);
-    sprintf(buffer, "PLAY %s\n", line);
-    write(sockfiled, buffer, strlen(buffer));
+    snprintf(buffer, MAX_LEN, "PLAY %s\n", line);
+    //write(sockfiled, buffer, strlen(buffer));
+    ownWrite(sockfiled, buffer);
 
 }
 
@@ -148,14 +151,19 @@ void mainloop_sockline(char* line){
     // Erwartet: + MNM Gameserver v2.3 accepting connections
     if (current_state == EXPECT_WELCOME_LINE) {
         sprintf(buffer, "VERSION %s\n", CLIENTVERSION);
-        write(sockfiled, buffer, strlen(buffer));
+
+        //write(sockfiled, buffer, strlen(buffer));
+        ownWrite(sockfiled, buffer);
+
         current_state = EXPECT_GAME_ID_PROMPT;
+
 
 
     // Erwartet: + Client version accepted - please send Game-ID to join
     } else if (current_state == EXPECT_GAME_ID_PROMPT) {
         sprintf(buffer, "ID %s\n", gameID);
-        write(sockfiled, buffer, strlen(buffer));
+        //write(sockfiled, buffer, strlen(buffer));
+        ownWrite(sockfiled, buffer);
         current_state = EXPECT_GAME_KIND_NAME;
 
 
@@ -177,11 +185,13 @@ void mainloop_sockline(char* line){
 
         if (wantedPlayerNumber == -1) {
             sprintf(buffer, "PLAYER\n");
-            write(sockfiled, buffer, strlen(buffer));
+            //write(sockfiled, buffer, strlen(buffer));
+            ownWrite(sockfiled, buffer);
 
         } else {
             sprintf(buffer, "PLAYER %d\n", wantedPlayerNumber);
-            write(sockfiled, buffer, strlen(buffer));
+            //write(sockfiled, buffer, strlen(buffer));
+            ownWrite(sockfiled, buffer);
         }
 
         // überträgt die allgemeinen Spielinfos in den Shmemory-Bereich
@@ -289,7 +299,8 @@ void mainloop_sockline(char* line){
         if (startsWith(line, "+ WAIT")) {
             // Antwort "OKWAIT" zurückschicken
             sprintf(buffer, "OKWAIT\n");
-            write(sockfiled, buffer, strlen(buffer));
+            //write(sockfiled, buffer, strlen(buffer));
+            ownWrite(sockfiled, buffer);
             printf("Ich habe das WAIT beantwortet.\n"); // nur für mich zur Kontrolle, kann weg
         } else if (startsWith(line, "+ MOVE"))  {
             current_state = MOVE;
@@ -404,7 +415,8 @@ void mainloop_sockline(char* line){
 
             if (prevState != GAME_OVER) { // bei Game Over wollen wir kein "THINKING" zurückschreiben
                 sprintf(buffer, "THINKING\n");
-                write(sockfiled, buffer, strlen(buffer));
+                //write(sockfiled, buffer, strlen(buffer));
+                ownWrite(sockfiled, buffer);
             }
 
             current_state = prevState; // zurück zu Move oder Game Over
@@ -421,7 +433,8 @@ void mainloop_sockline(char* line){
 
             if (prevState != GAME_OVER) { // bei Game Over wollen wir kein "THINKING" zurückschreiben
                 sprintf(buffer, "THINKING\n");
-                write(sockfiled, buffer, strlen(buffer));
+                //write(sockfiled, buffer, strlen(buffer));
+                ownWrite(sockfiled, buffer);
             }
 
             current_state = prevState; // zurück zu Move oder Game Over
@@ -467,7 +480,7 @@ void mainloop_filehandler(char* buffer, int len, LineBuffer* linebuffer){
 
 
 // Epoll event Loop, um Pipe und Socket zu überwachen
-void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
+void mainloop_epoll(int sockfd, int pipefd, char ID[GAME_ID_LENGTH + 1], int playerNum){
 
     char buffersock[MAX_LEN];
     char bufferpipe[MAX_LEN];
@@ -476,7 +489,7 @@ void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
     memset(bufferpipe, 0, MAX_LEN);
 
     sockfiled = sockfd;
-    pipefiled = pipefd[2];
+    pipefiled = pipefd;
     wantedPlayerNumber = playerNum;
     for (long unsigned int i = 0; i < strlen(ID); i++) {
         gameID[i] = ID[i];
@@ -500,8 +513,8 @@ void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
 
     // Daten für die zu überwachende Pipe angeben
     eventpipe.events = EPOLLIN;
-    eventpipe.data.fd = pipefd[0];
-    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, pipefd[0], &eventpipe) == -1) {
+    eventpipe.data.fd = pipefiled;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, pipefiled, &eventpipe) == -1) {
         perror("Fehler bei epoll_ctl Pipe\n");
         mainloop_cleanup();
         exit(EXIT_FAILURE);
@@ -529,13 +542,18 @@ void mainloop_epoll(int sockfd, int pipefd[2], char ID[14], int playerNum){
 
         for (int n = 0; n < nfds; ++n) {
             // Lesen aus der Pipe
-            if (events[n].data.fd == pipefd[0]) {
-                int bufferlen = read(pipefd[0], bufferpipe, MAX_LEN);
+            if (events[n].data.fd == pipefiled) {
+                int bufferlen = read(pipefiled, bufferpipe, MAX_LEN);
 		        mainloop_filehandler(bufferpipe, bufferlen, &pipebuffer);
             // Lesen vom Socket
             } else if (events[n].data.fd == sockfiled) {
-                int bufferlen = read(sockfd, buffersock, MAX_LEN);
+                int bufferlen = read(sockfd, buffersock, MAX_LEN - sockbuffer.filled);
                 mainloop_filehandler(buffersock, bufferlen, &sockbuffer);
+                if(MAX_LEN == sockbuffer.filled){
+                    printf("Buffer ist voll und es wurde kein newLine Zeichen gelesen.");
+                    mainloop_cleanup();
+                    exit(EXIT_FAILURE);
+                }
             }
         }
     }
