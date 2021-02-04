@@ -235,9 +235,11 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
 
-	    do {
-	        pause();
-	    } while(!pGeneralInfo->newMoveInfoAvailable);
+	// erstmal auf Signal + Flag vom Connector warten
+	// (Flag wird vom Connector auch im Fehlerfall gesetzt, damit man hier weiterkommen kann)
+	do {
+	    pause();
+	} while(!pGeneralInfo->newMoveInfoAvailable);
 
         if (!pGeneralInfo->isActive && !pGeneralInfo->prologueSuccessful) {
             printf("Es gab im Connector einen Fehler schon während des Prologs. Der Thinker beendet sich jetzt auch.\n");

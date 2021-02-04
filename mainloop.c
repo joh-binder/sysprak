@@ -10,8 +10,7 @@
 #define GAMEKINDNAME "Bashni"
 #define GAME_ID_LENGTH 13
 
-typedef struct
-{
+typedef struct {
     char buffer[MAX_LEN];
     int filled;
     void (*line)(char*);
@@ -77,7 +76,10 @@ void mainloop_cleanup(void) {
     // sendet ein Signal an Thinker, damit er am pause vorbeikommt und sich auch beenden kann
     if (kill(pGeneralInfo->pidThinker, SIGUSR1) != 0) {
         fprintf(stderr, "Fehler beim Senden des Signals in mainloop_cleanup.\n");
+    } else { // müssen auch Flag setzen, denn Thinker reagiert nur auf Signal + Flag
+    	pGeneralInfo->newMoveInfoAvailable = true;
     }
+
     printf("Der Connector beendet sich jetzt.\n");
 
 }
