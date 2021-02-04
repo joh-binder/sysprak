@@ -235,9 +235,9 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
 
-	do {
-        	pause();
-	} while(!pGeneralInfo->newMoveInfoAvailable);
+	    do {
+	        pause();
+	    } while(!pGeneralInfo->newMoveInfoAvailable);
 
         if (!pGeneralInfo->isActive && !pGeneralInfo->prologueSuccessful) {
             printf("Es gab im Connector einen Fehler schon während des Prologs. Der Thinker beendet sich jetzt auch.\n");
@@ -272,7 +272,7 @@ int main(int argc, char *argv[]) {
 
                 think(moveString);
                 printf("\nDer beste Zug ist: %s\n", moveString);
-                write(fd[1], moveString, strlen(moveString));
+                ownWrite(fd[1], moveString);
             } else if (sigFlagMoves) { // wenn nur sigFlagMoves, ohne dass es neue Infos gibt (d.h. wenn einfach so ein SIGUSR1 gekommen ist)
                 sigFlagMoves = false; // Flag zurücksetzen und wieder auf Signal warten
             }
