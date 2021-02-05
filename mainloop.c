@@ -250,10 +250,10 @@ void mainloop_sockline(char* line) {
     //Erwartet: + <<Mitspielernummer>> <<Mitspielername>> <<Bereit>>
     } else if (current_state == EXPECT_OPP_PLAYER_INFO) {
         if (strcmp(line, "+ ENDPLAYERS") != 0) {
-
             countOpponents++;
-            if (countOpponents >= totalplayer) {
-                fprintf(stderr, "Fehler! Mehr Spieler-Infos empfangen als erwartet. Client wird beendet.\n");
+            if (countOpponents != totalplayer - 1) {
+                fprintf(stderr, "Fehler! Falsche Anzahl an gegnerischen Spieler-Infos empfangen als erwartet.\n");
+                fprintf(stderr, "Erwartet wurden: %d, erhalten wurden: %d\n", totalplayer - 1, countOpponents);
                 mainloop_cleanup();
                 exit(EXIT_FAILURE);
             } else {
