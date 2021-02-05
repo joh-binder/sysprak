@@ -95,8 +95,7 @@ void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer
     printf("Die ID eures Spiels lautet: %s\n", gameID);
     printf("Du bist: %s\n", playerName);
     printf("Die Gesamtanzahl an Spielern ist: %d\n", totalPlayer);
-    if (totalPlayer > 2) printf("Informationen zu den Gegnern:\n");
-    else printf("Informationen zum Gegner:\n");
+    printf("Informationen %s:\n", (totalPlayer > 2 ? "zu den Gegnern" : "zum Gegner"));
     for (int i = 0; i < totalPlayer - 1; i++) {
       printf("Gegner %d hat die Nummer: %d\n", i + 1, oppInfo[i].playerNumber);
       printf("Gegner %d heißt: %s\n", i + 1, oppInfo[i].playerName);
@@ -137,13 +136,13 @@ void mainloop_sockline(char* line) {
         if (strcmp(line + 2, "TIMEOUT Be faster next time") == 0) {
             fprintf(stderr, "Fehler! Zu langsam. Versuche beim nächsten Mal schneller zu sein. (Server: %s)\n", line + 2);
         } else if(strcmp(line + 2, "Not a valid game ID") == 0) {
-            fprintf(stderr, "Fehler! Keine zulässige Game ID. (Server: %s)\n", line + 2);
+            fprintf(stderr, "Fehler! Keine zulässige Game-ID. (Server: %s)\n", line + 2);
         } else if(strcmp(line + 2, "Game does not exist") == 0) {
             fprintf(stderr, "Fehler! Dieses Spiel existiert nicht. (Server: %s)\n", line + 2);
         } else if(strcmp(line + 2, "No free player") == 0) {
             fprintf(stderr, "Fehler! Spieler ist nicht verfügbar. (Server: %s)\n", line + 2);
         } else if(strcmp(line + 2, "Client Version does not match server Version") == 0) {
-            fprintf(stderr, "Fehler! Die Client Version und Server Version stimmen nicht überein. (Server: %s)\n", line + 2);
+            fprintf(stderr, "Fehler! Die Client-Version und Server-Version stimmen nicht überein. (Server: %s)\n", line + 2);
         } else if(startsWith(line+2, "Invalid Move")) {
             fprintf(stderr, "Fehler! Es wurde ein ungültiger Spielzug übermittelt. (Server: %s)\n", line + 2);
         } else {
@@ -373,7 +372,7 @@ void mainloop_sockline(char* line) {
             mainloop_cleanup();
             exit(EXIT_SUCCESS);
         } else if (startsWith(line, "+ PLAYER")) { // erwartet '+ PLAYERXWON Yes/No'
-            unsigned int pnum;
+            int pnum;
             char hasWon[4]; // 4, um "Yes" und Nullbyte aufnehmen zu können
             memset(hasWon, 0, 4);
 
@@ -388,7 +387,7 @@ void mainloop_sockline(char* line) {
                 exit(EXIT_SUCCESS);
             }
 
-            if (pnum == (unsigned int) pGeneralInfo->ownPlayerNumber) {
+            if (pnum == pGeneralInfo->ownPlayerNumber) {
                 printf("Ich (Spieler %d) habe %s.\n", pnum, (strcmp(hasWon, "Yes") == 0) ? "gewonnen" : "verloren");
             } else {
                 struct playerInfo *pThisPlayer = getPlayerFromNumber(pnum, pGeneralInfo->numberOfPlayers);
@@ -500,9 +499,7 @@ void mainloop_epoll(int sockfd, int pipefd, char ID[GAME_ID_LENGTH + 1], int pla
     sockfiled = sockfd;
     pipefiled = pipefd;
     wantedPlayerNumber = playerNum;
-    for (long unsigned int i = 0; i < strlen(ID); i++) {
-        gameID[i] = ID[i];
-    }
+    strncpy(gameID, ID, strlen(ID));
 
     // Erstellt zwei Instanzen des LineBuffer Structs; eins für die Pipe und eins für den Socket
     LineBuffer sockbuffer;

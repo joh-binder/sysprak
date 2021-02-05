@@ -13,7 +13,7 @@
 struct gameInfo {
     char gameKindName[MAX_LENGTH_NAMES];
     char gameName[MAX_LENGTH_NAMES];
-    unsigned int numberOfPlayers;
+    int numberOfPlayers;
     int ownPlayerNumber; // praktisch, wenn die hier nochmal steht
     pid_t pidConnector;
     pid_t pidThinker;
