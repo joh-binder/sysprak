@@ -65,8 +65,14 @@ static int ownPlayerNumber;
 
 void mainloop_cleanup(void) {
     pGeneralInfo->isActive = false;
-    if (sockfiled != -1) close(sockfiled);
-    if (pipefiled != -1) close(pipefiled);
+    if (sockfiled != -1) {
+        if (close(sockfiled) != 0) { perror("Fehler beim Aufräumen in Mainloop: Konnte Socket nicht schließen"); }
+        else { sockfiled = -1; }
+    }
+    if (pipefiled != -1) {
+        if (close(pipefiled) != 0) { perror("Fehler beim Aufräumen in Mainloop: Konnte Pipe nicht schließen"); }
+        else { pipefiled = -1; }
+    }
 
     if (pTempMemoryForPieces != NULL) {
         free(pTempMemoryForPieces);
