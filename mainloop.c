@@ -74,10 +74,9 @@ void mainloop_cleanup(void) {
     }
 
     // sendet ein Signal an Thinker, damit er am pause vorbeikommt und sich auch beenden kann
+    pGeneralInfo->newMoveInfoAvailable = true; // müssen auch Flag setzen, denn Thinker reagiert nur auf Signal + Flag
     if (kill(pGeneralInfo->pidThinker, SIGUSR1) != 0) {
         fprintf(stderr, "Fehler beim Senden des Signals in mainloop_cleanup.\n");
-    } else { // müssen auch Flag setzen, denn Thinker reagiert nur auf Signal + Flag
-    	pGeneralInfo->newMoveInfoAvailable = true;
     }
 
     printf("Der Connector beendet sich jetzt.\n");
@@ -95,8 +94,7 @@ void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer
     for (int i = 0; i < totalPlayer - 1; i++) {
       printf("Gegner %d hat die Nummer: %d\n", i + 1, oppInfo[i].playerNumber);
       printf("Gegner %d heißt: %s\n", i + 1, oppInfo[i].playerName);
-      if (oppInfo[i].readyOrNot) printf("Gegner %d ist bereit.\n", i + 1);
-      else printf("Gegner %d ist nicht bereit.\n", i + 1);
+      printf("Gegner %d ist %s bereit.\n", i + 1, (oppInfo[i].readyOrNot ? "" : "noch nicht"));
     }
     printf("=========================================\n");
 }
@@ -227,7 +225,6 @@ void mainloop_sockline(char* line) {
 
     // Erwartet: + TOTAL <<Mitspieleranzahl>>
     } else if (current_state == EXPECT_TOTAL_PLAYER_INFO) {
-        printf("Total: %s\n", line + 2);
         if (sscanf(line+2, "%*[^ ] %d", &totalplayer) != 1) {
             fprintf(stderr, "Fehler beim Verarbeiten der Mitspieleranzahl\n");
             mainloop_cleanup();
@@ -351,6 +348,7 @@ void mainloop_sockline(char* line) {
         }
     } else if (current_state == GAME_OVER) { // Zustand nach Gameover
         if (startsWith(line, "+ PIECESLIST")) {
+            printf("Das Spiel ist vorbei.\n");
             countPieceLines = 0; // Zähler für Spielsteine zurücksetzen
             if (!moveShmExists) { // wenn es noch kein Move-Shmemory gibt (sofort Game Over, z.B. bei Aufruf einer Partie, die schon vorbei ist)
                 pTempMemoryForPieces = malloc(sizeof(struct line)); // Zwischenspeicher für die Steine
@@ -366,7 +364,6 @@ void mainloop_sockline(char* line) {
                 current_state = READING_PIECES_REGULAR;
             }
         } else if (strcmp(line, "+ QUIT") == 0) {
-            printf("Das Spiel ist vorbei.\n");
             mainloop_cleanup();
             exit(EXIT_SUCCESS);
         } else if (startsWith(line, "+ PLAYER")) { // erwartet '+ PLAYERXWON Yes/No'

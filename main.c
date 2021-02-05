@@ -73,7 +73,7 @@ void sigHandlerCtrlC(int sig_nr) {
 
 // signal handler Thinker
 void sigHandlerMoves(int sig_nr) {
-    printf("Thinker: Signal (%d) bekommen vom Connector. (Moves) \n", sig_nr);
+    printf("\nThinker: Signal (%d) bekommen vom Connector. (Moves) \n", sig_nr);
     sigFlagMoves = true;
 }
 
@@ -216,7 +216,7 @@ int main(int argc, char *argv[]) {
 
         mainloop_epoll(sock, fd[0], gameID, wantedPlayerNumber);
 
-        close(sock);
+        // in mainloop_epoll wird der Kindprozess beendet (inkl. Aufräumen)
 
     } else {
         // wir sind im Elternprozess -> Thinker
@@ -294,9 +294,16 @@ int main(int argc, char *argv[]) {
 
         printf("Der Thinker beendet sich jetzt auch.\n");
 
-        // Aufräumarbeiten
-        cleanupMain();
-        wait(NULL);
+        cleanupMain(); // Aufräumarbeiten
+
+        int waitstatus;
+        do {
+            waitstatus = wait(NULL);
+            if (waitstatus == -1) {
+                perror("Fehler beim Warten auf Kindprozess");
+            }
+        } while (waitstatus != pid);
+
     }
 
     return EXIT_SUCCESS;
