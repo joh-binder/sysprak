@@ -13,7 +13,7 @@
 typedef struct {
     char buffer[MAX_LEN];
     int filled;
-    void (*line)(char*);
+    void (*line)(char *);
 } LineBuffer;
 
 typedef enum {
@@ -48,7 +48,7 @@ static struct playerInfo *pPlayerInfo;
 static struct line *pMoves;
 
 // hier kommen die Infos zu den Gegnern rein
-static struct tempPlayerInfo oppInfo[MAX_NUMBER_OF_PLAYERS_IN_SHMEM-1];
+static struct tempPlayerInfo oppInfo[MAX_NUMBER_OF_PLAYERS_IN_SHMEM - 1];
 int countOpponents = 0;
 
 int countPieceLines = 0;
@@ -74,6 +74,11 @@ void mainloop_cleanup(void) {
         else { pipefiled = -1; }
     }
 
+    if (epollfd != -1) {
+        if (close(epollfd) != 0) { perror("Fehler beim Aufräumen in Mainloop: Konnte Epoll-Filedeskriptor nicht schließen"); }
+        else { epollfd = -1; }
+    }
+
     if (pTempMemoryForPieces != NULL) {
         free(pTempMemoryForPieces);
         pTempMemoryForPieces = NULL;
@@ -89,6 +94,7 @@ void mainloop_cleanup(void) {
 
 }
 
+
 void prettyPrint(char *gameKind, char *gamename, char *gameID, char *playerName, int totalPlayer, struct tempPlayerInfo *oppInfo) {
     printf("=============================================\n");
     printf("Ihr spielt: %s\n", gameKind);
@@ -98,17 +104,15 @@ void prettyPrint(char *gameKind, char *gamename, char *gameID, char *playerName,
     printf("Die Gesamtanzahl an Spielern ist: %d\n", totalPlayer);
     printf("Informationen %s:\n", (totalPlayer > 2 ? "zu den Gegnern" : "zum Gegner"));
     for (int i = 0; i < totalPlayer - 1; i++) {
-      printf("Gegner %d hat die Nummer: %d\n", i + 1, oppInfo[i].playerNumber);
-      printf("Gegner %d heißt: %s\n", i + 1, oppInfo[i].playerName);
-      printf("Gegner %d ist %sbereit.\n", i + 1, (oppInfo[i].readyOrNot ? "" : "noch nicht "));
+        printf("Gegner %d hat die Nummer: %d\n", i + 1, oppInfo[i].playerNumber);
+        printf("Gegner %d heißt: %s\n", i + 1, oppInfo[i].playerName);
+        printf("Gegner %d ist %sbereit.\n", i + 1, (oppInfo[i].readyOrNot ? "" : "noch nicht "));
     }
     printf("=============================================\n");
 }
 
 
-
-
-void mainloop_pipeline(char* line) {
+void mainloop_pipeline(char *line) {
 
     char buffer[MAX_LEN];
 
@@ -120,34 +124,32 @@ void mainloop_pipeline(char* line) {
 }
 
 
-
-
-void mainloop_sockline(char* line) {
+void mainloop_sockline(char *line) {
 
     char buffer[MAX_LEN];
+    strcpy(buffer, "");
 
-    // Variablen, die hier standen, sind jetzt ganz oben statisch deklariert
+    // Variablen, die vorher hier standen, sind jetzt ganz oben statisch deklariert
     // valgrind ist nämlich glücklicher, wenn die initialisiert werden, und bei statischen Variablen passiert das von selbst
 
-    strcpy(buffer,"");
+    if (strlen(line) > 1 && *line == '-') { // wenn eine Fehlernachricht geschickt wird
 
-    if (strlen(line) > 1 && *line == '-') {
-
-        // Fehlerbehandlung bei falschen Angaben
-        if (strcmp(line + 2, "TIMEOUT Be faster next time") == 0) {
-            fprintf(stderr, "Fehler! Zu langsam. Versuche beim nächsten Mal schneller zu sein. (Server: %s)\n", line + 2);
-        } else if(strcmp(line + 2, "Not a valid game ID") == 0) {
-            fprintf(stderr, "Fehler! Keine zulässige Game-ID. (Server: %s)\n", line + 2);
-        } else if(strcmp(line + 2, "Game does not exist") == 0) {
-            fprintf(stderr, "Fehler! Dieses Spiel existiert nicht. (Server: %s)\n", line + 2);
-        } else if(strcmp(line + 2, "No free player") == 0) {
-            fprintf(stderr, "Fehler! Spieler ist nicht verfügbar. (Server: %s)\n", line + 2);
-        } else if(strcmp(line + 2, "Client Version does not match server Version") == 0) {
-            fprintf(stderr, "Fehler! Die Client-Version und Server-Version stimmen nicht überein. (Server: %s)\n", line + 2);
-        } else if(startsWith(line+2, "Invalid Move")) {
-            fprintf(stderr, "Fehler! Es wurde ein ungültiger Spielzug übermittelt. (Server: %s)\n", line + 2);
+        // passenden Text dazu auswählen
+        line += 2;
+        if (strcmp(line, "TIMEOUT Be faster next time") == 0) {
+            fprintf(stderr, "Fehler! Zu langsam. Versuche beim nächsten Mal schneller zu sein. (Server: %s)\n", line);
+        } else if (strcmp(line, "Not a valid game ID") == 0) {
+            fprintf(stderr, "Fehler! Keine zulässige Game-ID. (Server: %s)\n", line);
+        } else if (strcmp(line, "Game does not exist") == 0) {
+            fprintf(stderr, "Fehler! Dieses Spiel existiert nicht. (Server: %s)\n", line);
+        } else if (strcmp(line, "No free player") == 0) {
+            fprintf(stderr, "Fehler! Spieler ist nicht verfügbar. (Server: %s)\n", line);
+        } else if (strcmp(line, "Client Version does not match server Version") == 0) {
+            fprintf(stderr, "Fehler! Die Client-Version und Server-Version stimmen nicht überein. (Server: %s)\n", line);
+        } else if (startsWith(line, "Invalid Move")) {
+            fprintf(stderr, "Fehler! Es wurde ein ungültiger Spielzug übermittelt. (Server: %s)\n", line);
         } else {
-            fprintf(stderr, "Es ist ein unerwarteter Fehler aufgetreten. (Server: %s)\n", line + 2);
+            fprintf(stderr, "Es ist ein unerwarteter Fehler aufgetreten. (Server: %s)\n", line);
         }
 
         mainloop_cleanup();
@@ -177,7 +179,7 @@ void mainloop_sockline(char* line) {
         strncpy(gamekindserver, line + 10, MAX_LEN - 2);
         gamekindserver[MAX_LEN - 1] = '\0';
         if (strcmp(gamekindserver, "Bashni") != 0) {
-            fprintf(stderr, "Fehler! Falsche Spielart. Spiel des Clients: %s. Spiel des Servers: %s. Client wird beendet.\n", GAMEKINDNAME, gamekindserver);
+            fprintf(stderr, "Fehler! Falsche Spielart. Spiel des Clients: %s. Spiel des Servers: %s.\n", GAMEKINDNAME, gamekindserver);
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
@@ -186,8 +188,8 @@ void mainloop_sockline(char* line) {
 
     // Erwartet: + <<Game-Name>>
     } else if (current_state == EXPECT_GAME_NAME) {
-        strncpy(gamename, line+2, MAX_LEN-2);
-        gamename[MAX_LEN-1] = '\0';
+        strncpy(gamename, line + 2, MAX_LEN - 2);
+        gamename[MAX_LEN - 1] = '\0';
 
         if (wantedPlayerNumber == -1) {
             sprintf(buffer, "PLAYER\n");
@@ -202,15 +204,16 @@ void mainloop_sockline(char* line) {
 
         // überträgt die allgemeinen Spielinfos in den Shmemory-Bereich
         strncpy(pGeneralInfo->gameKindName, gamekindserver, MAX_LENGTH_NAMES - 2);
-        pGeneralInfo->gameKindName [MAX_LENGTH_NAMES - 1] = '\0';
+        pGeneralInfo->gameKindName[MAX_LENGTH_NAMES - 1] = '\0';
         strncpy(pGeneralInfo->gameName, gamename, MAX_LENGTH_NAMES - 2);
-        pGeneralInfo->gameName [MAX_LENGTH_NAMES - 1] = '\0';
+        pGeneralInfo->gameName[MAX_LENGTH_NAMES - 1] = '\0';
 
         current_state = EXPECT_OWN_PLAYER_INFO;
 
+
     // Erwartet: + YOU <<Mitspielernummer>> <<Mitspielername>>
     } else if (current_state == EXPECT_OWN_PLAYER_INFO) {
-        if (sscanf(line+6, "%d %[^\n]", &ownPlayerNumber, playerName) != 2) {
+        if (sscanf(line + 6, "%d %[^\n]", &ownPlayerNumber, playerName) != 2) {
             fprintf(stderr, "Fehler beim Verarbeiten der eigenen Spielerinformationen\n");
             mainloop_cleanup();
             exit(EXIT_FAILURE);
@@ -219,7 +222,7 @@ void mainloop_sockline(char* line) {
 
         // überträgt diese Informationen in den Shared-Memory-Bereich
         struct playerInfo *pFirstPlayer = playerShmalloc();
-        if (pFirstPlayer == (struct playerInfo *)NULL) {
+        if (pFirstPlayer == (struct playerInfo *) NULL) {
             fprintf(stderr, "Fehler bei der Zuteilung von Shared Memory für die eigenen Spielerinfos.\n");
             mainloop_cleanup();
             exit(EXIT_FAILURE);
@@ -228,9 +231,10 @@ void mainloop_sockline(char* line) {
 
         current_state = EXPECT_TOTAL_PLAYER_INFO;
 
+
     // Erwartet: + TOTAL <<Mitspieleranzahl>>
     } else if (current_state == EXPECT_TOTAL_PLAYER_INFO) {
-        if (sscanf(line+2, "%*[^ ] %d", &totalplayer) != 1) {
+        if (sscanf(line + 2, "%*[^ ] %d", &totalplayer) != 1) {
             fprintf(stderr, "Fehler beim Verarbeiten der Mitspieleranzahl\n");
             mainloop_cleanup();
             exit(EXIT_FAILURE);
@@ -238,7 +242,7 @@ void mainloop_sockline(char* line) {
 
         // überprüft, ob für totalplayer Stück Spieler überhaupt genug Shared Memory reserviert wurde
         if (checkPlayerShmallocSize(totalplayer) != 0) {
-            fprintf(stderr, "Fehler! Es wird zu wenig Shared-Memory-Platz für %d Spieler bereitgestellt.\n", totalplayer);
+            fprintf(stderr, "Fehler! Für %d Spieler wird zu wenig Shared-Memory-Platz bereitgestellt.\n", totalplayer);
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
@@ -246,6 +250,7 @@ void mainloop_sockline(char* line) {
         pGeneralInfo->numberOfPlayers = totalplayer; // diese Information muss im Shmemory noch ergänzt werden
 
         current_state = EXPECT_OPP_PLAYER_INFO;
+
 
     //Erwartet: + <<Mitspielernummer>> <<Mitspielername>> <<Bereit>>
     } else if (current_state == EXPECT_OPP_PLAYER_INFO) {
@@ -258,17 +263,17 @@ void mainloop_sockline(char* line) {
                 exit(EXIT_FAILURE);
             } else {
                 // trennt am Leerzeichen nach Mitspielernummer; Mitspielernummer wird in playerNumber geschrieben; alles dahinter zurück in line
-                if (sscanf(line+2, "%d %[^\n]", &oppInfo[countOpponents-1].playerNumber, line) != 2) {
+                if (sscanf(line + 2, "%d %[^\n]", &oppInfo[countOpponents - 1].playerNumber, line) != 2) {
                     fprintf(stderr, "Fehler beim Verarbeiten von Mitspielerinformationen: Scan gescheitert\n");
                     mainloop_cleanup();
                     exit(EXIT_FAILURE);
                 }
 
                 // betrachten jetzt das allerletzte Zeichen (= Bereit)
-                if (line[strlen(line)-1] == '0') {
-                    oppInfo[countOpponents-1].readyOrNot = false;
-                } else if (line[strlen(line)-1] == '1') {
-                    oppInfo[countOpponents-1].readyOrNot = true;
+                if (line[strlen(line) - 1] == '0') {
+                    oppInfo[countOpponents - 1].readyOrNot = false;
+                } else if (line[strlen(line) - 1] == '1') {
+                    oppInfo[countOpponents - 1].readyOrNot = true;
                 } else {
                     fprintf(stderr, "Fehler beim Verarbeiten von Mitspielerinformationen: Bereit-Wert konnte nicht interpretiert werden\n");
                     mainloop_cleanup();
@@ -277,7 +282,7 @@ void mainloop_sockline(char* line) {
 
                 // Nullbyte setzen, um die letzten zwei Zeichen (Leerzeichen und Bereit) abzuschneiden -> Rest ist Name
                 line[minInt(MAX_LENGTH_NAMES - 1, strlen(line) - 2)] = '\0';
-                strncpy(oppInfo[countOpponents-1].playerName, line, MAX_LENGTH_NAMES);
+                strncpy(oppInfo[countOpponents - 1].playerName, line, MAX_LENGTH_NAMES);
             }
 
         } else {
@@ -302,6 +307,7 @@ void mainloop_sockline(char* line) {
             pGeneralInfo->prologueSuccessful = true;
         }
 
+
     } else if (current_state == MAIN_STATE) { // entspricht "normalem" Zustand nach dem Prolog
 
         if (startsWith(line, "+ WAIT")) {
@@ -310,7 +316,7 @@ void mainloop_sockline(char* line) {
             //write(sockfiled, buffer, strlen(buffer));
             ownWrite(sockfiled, buffer);
             printf("Ich habe das WAIT beantwortet.\n"); // nur für mich zur Kontrolle, kann weg
-        } else if (startsWith(line, "+ MOVE"))  {
+        } else if (startsWith(line, "+ MOVE")) {
             current_state = MOVE;
         } else if (strcmp(line, "+ GAMEOVER") == 0) {
             current_state = GAME_OVER;
@@ -319,6 +325,7 @@ void mainloop_sockline(char* line) {
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
+
 
     } else if (current_state == MOVE) { // d.h. Zustand bei Move
         if (startsWith(line, "+ PIECESLIST")) {
@@ -338,11 +345,11 @@ void mainloop_sockline(char* line) {
             }
         } else if (strcmp(line, "+ OKTHINK") == 0) {
             // Signal an Thinker schicken
-	        if (kill(pGeneralInfo->pidThinker, SIGUSR1) != 0) {
+            if (kill(pGeneralInfo->pidThinker, SIGUSR1) != 0) {
                 fprintf(stderr, "Fehler beim Senden des Signals in Runde 1.\n");
                 mainloop_cleanup();
                 exit(EXIT_FAILURE);
-	        }
+            }
         } else if (strcmp(line, "+ MOVEOK") == 0) {
             printf("Spielzug wurde akzeptiert\n");
             current_state = MAIN_STATE;
@@ -351,6 +358,8 @@ void mainloop_sockline(char* line) {
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
+
+
     } else if (current_state == GAME_OVER) { // Zustand nach Gameover
         if (startsWith(line, "+ PIECESLIST")) {
             printf("\nDas Spiel ist vorbei.\n");
@@ -370,21 +379,21 @@ void mainloop_sockline(char* line) {
             }
         } else if (strcmp(line, "+ QUIT") == 0) {
             mainloop_cleanup();
-            exit(EXIT_SUCCESS);
+            // im Cleanup wird isActive = false gesetzt -> dadurch wird Eventloop verlassen und Programm beendet sich
         } else if (startsWith(line, "+ PLAYER")) { // erwartet '+ PLAYERXWON Yes/No'
             int pnum;
             char hasWon[4]; // 4, um "Yes" und Nullbyte aufnehmen zu können
             memset(hasWon, 0, 4);
 
-            if (sscanf(line+8, "%d %*s %s", &pnum, hasWon) != 2) {
+            if (sscanf(line + 8, "%d %*s %s", &pnum, hasWon) != 2) {
                 fprintf(stderr, "Fehler beim Interpretieren der Informationen, welcher Spieler gewonnen hat.\n");
                 mainloop_cleanup();
-                exit(EXIT_SUCCESS);
+                exit(EXIT_FAILURE);
             }
             if (pnum >= pGeneralInfo->numberOfPlayers) {
                 fprintf(stderr, "Fehler! Informationen zu einem Spieler Nr. %d erhalten, aber es gibt nur %d Spieler.\n", pnum, pGeneralInfo->numberOfPlayers);
                 mainloop_cleanup();
-                exit(EXIT_SUCCESS);
+                exit(EXIT_FAILURE);
             }
 
             if (pnum == pGeneralInfo->ownPlayerNumber) {
@@ -394,7 +403,7 @@ void mainloop_sockline(char* line) {
                 if (pThisPlayer == NULL) {
                     fprintf(stderr, "Fehler! Konnte für Spieler Nr. %d keine Informationen im Shared Memory finden.\n", pnum);
                     mainloop_cleanup();
-                    exit(EXIT_SUCCESS);
+                    exit(EXIT_FAILURE);
                 }
                 printf("%s (Spieler %d) hat %s.\n", pThisPlayer->playerName, pnum, (strcmp(hasWon, "Yes") == 0) ? "gewonnen" : "verloren");
             }
@@ -403,6 +412,8 @@ void mainloop_sockline(char* line) {
             mainloop_cleanup();
             exit(EXIT_FAILURE);
         }
+
+
     } else if (current_state == READING_PIECES_FIRST_TIME) { // Zustand, in dem zum ersten Mal Steine eingelesen werden --> in Zwischenspeicher, danach in Shmem umschreiben
         if (strcmp(line, "+ ENDPIECESLIST") == 0) {
             pGeneralInfo->sizeMoveShmem = countPieceLines; // Anzahl der Spielsteininfos im Shmemory aktualisieren
@@ -449,6 +460,8 @@ void mainloop_sockline(char* line) {
             pTempMemoryForPieces[countPieceLines] = createLineStruct(line + 2); // den empfangenen String in den gereallocten Speicher schreiben
             countPieceLines++;
         }
+
+
     } else if (current_state == READING_PIECES_REGULAR) { // Zustand, in dem Steine eingelesen und direkt im Shmemory gespeichert werden
         if (strcmp(line, "+ ENDPIECESLIST") == 0) {
             pGeneralInfo->sizeMoveShmem = countPieceLines; // der Allgemeinheit halber, ist aber in Bashni immer 32
@@ -463,7 +476,7 @@ void mainloop_sockline(char* line) {
             current_state = prevState; // zurück zu Move oder Game Over
         } else { // d.h. diese Zeile ist ein Spielstein
             // printf("Spielstein (normal): %s\n", line+2);
-            pMoves[countPieceLines] = createLineStruct(line+2);
+            pMoves[countPieceLines] = createLineStruct(line + 2);
             countPieceLines++;
         }
     } else {
@@ -475,31 +488,24 @@ void mainloop_sockline(char* line) {
 }
 
 
+// Bekommt einen Buffer und macht Zeilen daraus, welche an den LineHandler weitergegeben werden
+void mainloop_filehandler(char *buffer, int len, LineBuffer *linebuffer) {
 
-
-
-//Bekommt einen Buffer und macht Zeilen daraus, welche an den LineHandler weitergegeben werden
-void mainloop_filehandler(char* buffer, int len, LineBuffer* linebuffer) {
-
-    memcpy(linebuffer->buffer+linebuffer->filled, buffer, len);
+    memcpy(linebuffer->buffer + linebuffer->filled, buffer, len);
     linebuffer->filled += len;
 
     int oldi = 0;
-    for(int i = 0; i < linebuffer->filled; i++) {
-        if(linebuffer->buffer[i] == '\n') {
+    for (int i = 0; i < linebuffer->filled; i++) {
+        if (linebuffer->buffer[i] == '\n') {
             linebuffer->buffer[i] = '\0';
             (*(linebuffer->line))(&(linebuffer->buffer[oldi]));
             oldi = i + 1;
         }
     }
     // Kopiert Reststring an den Anfang
-    memmove(linebuffer->buffer, &(linebuffer->buffer[oldi]), (linebuffer->filled)-oldi);
-    linebuffer->filled = (linebuffer->filled)-oldi;
+    memmove(linebuffer->buffer, &(linebuffer->buffer[oldi]), (linebuffer->filled) - oldi);
+    linebuffer->filled = (linebuffer->filled) - oldi;
 }
-
-
-
-
 
 
 // Epoll event Loop, um Pipe und Socket zu überwachen
@@ -560,17 +566,16 @@ void mainloop_epoll(int sockfd, int pipefd, char ID[GAME_ID_LENGTH + 1], int pla
             exit(EXIT_FAILURE);
         }
 
-
         for (int n = 0; n < nfds; ++n) {
             // Lesen aus der Pipe
             if (events[n].data.fd == pipefiled) {
                 int bufferlen = read(pipefiled, bufferpipe, MAX_LEN);
-		        mainloop_filehandler(bufferpipe, bufferlen, &pipebuffer);
-            // Lesen vom Socket
+                mainloop_filehandler(bufferpipe, bufferlen, &pipebuffer);
+                // Lesen vom Socket
             } else if (events[n].data.fd == sockfiled) {
                 int bufferlen = read(sockfd, buffersock, MAX_LEN - sockbuffer.filled);
                 mainloop_filehandler(buffersock, bufferlen, &sockbuffer);
-                if(MAX_LEN == sockbuffer.filled) {
+                if (MAX_LEN == sockbuffer.filled) {
                     printf("Buffer ist voll und es wurde kein newLine Zeichen gelesen.");
                     mainloop_cleanup();
                     exit(EXIT_FAILURE);
@@ -579,14 +584,9 @@ void mainloop_epoll(int sockfd, int pipefd, char ID[GAME_ID_LENGTH + 1], int pla
         }
     }
 
-    // Fehlerbehandlung, wenn closen für den Epollfd fehlschlägt
-    if (close(epollfd)) {
-        perror("Fehler bei close(epollfd)\n");
-        mainloop_cleanup();
-        exit(EXIT_FAILURE);
-    }
-
+    exit(EXIT_SUCCESS);
 }
+
 
 /* Die Pointer auf den Shared-Memory-Bereich für die allgemeinen Spielinfos und die Infos zu den einzelnen Spielern
  * müssen einmalig von main an performConnection übergeben werden, damit er dort verfügbar ist. */
