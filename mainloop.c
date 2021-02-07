@@ -409,7 +409,17 @@ void mainloop_sockline(char* line) {
 
             // erzeugt einen Shared-Memory-Bereich in passender Größe für alle Spielsteine (als struct line)
             int shmidMoveInfo = createShmemoryForMoves(countPieceLines);
+            if (shmidMoveInfo == -1) {
+                fprintf(stderr, "Fehler! Shared Memory für Spielzüge konnte nicht erstellt werden.\n");
+                mainloop_cleanup();
+                exit(EXIT_FAILURE);
+            }
             pMoves = shmAttach(shmidMoveInfo);
+            if (pMoves == NULL) {
+                fprintf(stderr, "Fehler! Shared Memory für Spielzüge konnte nicht angebunden werden.\n");
+                mainloop_cleanup();
+                exit(EXIT_FAILURE);
+            }
             moveShmExists = true;
 
             // überträgt alle Spielsteininfos vom gemallocten Zwischenspeicher in das neue Shmemory
@@ -430,8 +440,13 @@ void mainloop_sockline(char* line) {
             current_state = prevState; // zurück zu Move oder Game Over
         } else { // d.h. diese Zeile ist ein Spielstein
             // printf("Spielstein (erste Runde): %s\n", line+2);
-            pTempMemoryForPieces = (struct line *)realloc(pTempMemoryForPieces, (countPieceLines+1) * sizeof(struct line)); // Platz für ein struct line mehr von realloc holen
-            pTempMemoryForPieces[countPieceLines] = createLineStruct(line+2); // den empfangenen String in den gereallocten Speicher schreiben
+            struct line *pTempMemoryForPiecesAfterRealloc = (struct line *) realloc(pTempMemoryForPieces, (countPieceLines+1) * sizeof(struct line)); // Platz für ein struct line mehr von realloc holen
+            if (pTempMemoryForPiecesAfterRealloc == NULL) {
+                fprintf(stderr, "Fehler! Realloc für Spielsteine (in der ersten Runde) hat nicht funktioniert.\n");
+                mainloop_cleanup();
+                exit(EXIT_FAILURE);
+            } else { pTempMemoryForPieces = pTempMemoryForPiecesAfterRealloc; }
+            pTempMemoryForPieces[countPieceLines] = createLineStruct(line + 2); // den empfangenen String in den gereallocten Speicher schreiben
             countPieceLines++;
         }
     } else if (current_state == READING_PIECES_REGULAR) { // Zustand, in dem Steine eingelesen und direkt im Shmemory gespeichert werden
