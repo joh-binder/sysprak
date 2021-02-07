@@ -1,14 +1,14 @@
 #include <sys/epoll.h>
 #include <signal.h>
-
 #include "mainloop.h"
 #include "util.h"
+
+#define minInt(a, b) (a > b ? b : a)
 
 #define MAX_LEN 1024
 #define MAX_EVENTS 2
 #define CLIENTVERSION "2.0"
 #define GAMEKINDNAME "Bashni"
-#define GAME_ID_LENGTH 13
 
 typedef struct {
     char buffer[MAX_LEN];
@@ -89,9 +89,10 @@ void mainloop_cleanup(void) {
 
 }
 
-void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer, struct tempPlayerInfo *oppInfo) {
-    printf("=========================================\n");
+void prettyPrint(char *gameKind, char *gamename, char *gameID, char *playerName, int totalPlayer, struct tempPlayerInfo *oppInfo) {
+    printf("=============================================\n");
     printf("Ihr spielt: %s\n", gameKind);
+    printf("Eure Partie heißt: %s\n", gamename);
     printf("Die ID eures Spiels lautet: %s\n", gameID);
     printf("Du bist: %s\n", playerName);
     printf("Die Gesamtanzahl an Spielern ist: %d\n", totalPlayer);
@@ -99,9 +100,9 @@ void prettyPrint(char *gameKind, char *gameID, char *playerName, int totalPlayer
     for (int i = 0; i < totalPlayer - 1; i++) {
       printf("Gegner %d hat die Nummer: %d\n", i + 1, oppInfo[i].playerNumber);
       printf("Gegner %d heißt: %s\n", i + 1, oppInfo[i].playerName);
-      printf("Gegner %d ist %s bereit.\n", i + 1, (oppInfo[i].readyOrNot ? "" : "noch nicht"));
+      printf("Gegner %d ist %sbereit.\n", i + 1, (oppInfo[i].readyOrNot ? "" : "noch nicht "));
     }
-    printf("=========================================\n");
+    printf("=============================================\n");
 }
 
 
@@ -161,7 +162,6 @@ void mainloop_sockline(char* line) {
         ownWrite(sockfiled, buffer);
 
         current_state = EXPECT_GAME_ID_PROMPT;
-
 
 
     // Erwartet: + Client version accepted - please send Game-ID to join
@@ -259,16 +259,12 @@ void mainloop_sockline(char* line) {
             } else {
                 // trennt am Leerzeichen nach Mitspielernummer; Mitspielernummer wird in playerNumber geschrieben; alles dahinter zurück in line
                 if (sscanf(line+2, "%d %[^\n]", &oppInfo[countOpponents-1].playerNumber, line) != 2) {
-                    fprintf(stderr, "Fehler beim Verarbeiten von Mitspielerinformationen\n");
+                    fprintf(stderr, "Fehler beim Verarbeiten von Mitspielerinformationen: Scan gescheitert\n");
                     mainloop_cleanup();
                     exit(EXIT_FAILURE);
                 }
-                // schreibt line außer die letzten zwei Zeichen nach playerName
-                strncpy(oppInfo[countOpponents-1].playerName, line, strlen(line)-2);
 
-                oppInfo[countOpponents-1].playerName[strlen(line)-2] = '\0';
-
-                // betrachten noch das letzte Zeichen (= Bereit)
+                // betrachten jetzt das allerletzte Zeichen (= Bereit)
                 if (line[strlen(line)-1] == '0') {
                     oppInfo[countOpponents-1].readyOrNot = false;
                 } else if (line[strlen(line)-1] == '1') {
@@ -278,6 +274,10 @@ void mainloop_sockline(char* line) {
                     mainloop_cleanup();
                     exit(EXIT_FAILURE);
                 }
+
+                // Nullbyte setzen, um die letzten zwei Zeichen (Leerzeichen und Bereit) abzuschneiden -> Rest ist Name
+                line[minInt(MAX_LENGTH_NAMES - 1, strlen(line) - 2)] = '\0';
+                strncpy(oppInfo[countOpponents-1].playerName, line, MAX_LENGTH_NAMES);
             }
 
         } else {
@@ -285,13 +285,13 @@ void mainloop_sockline(char* line) {
             current_state = MAIN_STATE;
 
             // jetzt können wir alle Infos ausdrucken
-            prettyPrint(gamekindserver, gameID, playerName, totalplayer, oppInfo);
+            prettyPrint(gamekindserver, gamename, gameID, playerName, totalplayer, oppInfo);
 
             // außerdem können wir die oppInfos in Shared-Memory übertragen
-            for (int i = 0; i < totalplayer-1; i++) {
+            for (int i = 0; i < totalplayer - 1; i++) {
                 struct playerInfo *pNextPlayer = playerShmalloc();
-                if (pNextPlayer == (struct playerInfo *)NULL) {
-                    fprintf(stderr, "Fehler bei der Zuteilung von Shared Memory für Infos eines anderen Spielers.\n");
+                if (pNextPlayer == (struct playerInfo *) NULL) {
+                    fprintf(stderr, "Fehler bei der Zuteilung von Shared Memory für Mitspielerinfos.\n");
                     mainloop_cleanup();
                     exit(EXIT_FAILURE);
                 } else {
@@ -353,7 +353,7 @@ void mainloop_sockline(char* line) {
         }
     } else if (current_state == GAME_OVER) { // Zustand nach Gameover
         if (startsWith(line, "+ PIECESLIST")) {
-            printf("Das Spiel ist vorbei.\n");
+            printf("\nDas Spiel ist vorbei.\n");
             countPieceLines = 0; // Zähler für Spielsteine zurücksetzen
             if (!moveShmExists) { // wenn es noch kein Move-Shmemory gibt (sofort Game Over, z.B. bei Aufruf einer Partie, die schon vorbei ist)
                 pTempMemoryForPieces = malloc(sizeof(struct line)); // Zwischenspeicher für die Steine

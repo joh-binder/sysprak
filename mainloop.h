@@ -7,7 +7,7 @@
 
 struct tempPlayerInfo {
     int playerNumber;
-    char playerName[1024];
+    char playerName[MAX_LENGTH_NAMES];
     bool readyOrNot;
 };
 
