@@ -33,16 +33,17 @@ typedef struct moveInfo {
  * Gibt im Normalfall 0 und im Fehlerfall -1 (+ Fehlermeldung zur genaueren Lokalisierung) zurück. */
 int setUpMemoryForThinker(struct gameInfo *pG);
 
-/* Bündelt die Funktionen resetTallocCounter und resetBoard, da diese sowieso miteinander verwendet werden sollen. */
+// Bündelt die Funktionen resetTallocCounter und resetBoard, da diese sowieso miteinander verwendet werden sollen.
 void prepareNewRound(void);
 
-/* Wendet printTopPieces an und druckt zusätzlich eine Liste mit allen weißen und schwarzen Türmen.*/
+// Druckt Spielbrett mit den obersten Spielsteinen und zusätzlich eine Liste mit allen weißen und schwarzen Türmen.
 void printFull(void);
 
-/* Liest Spielsteine aus dem Shmemory und setzt sie auf das Spielbrett. Gibt im Fehlerfall -1 zurück, sonst 0. */
+// Liest Spielsteine aus dem Shmemory und setzt sie auf das Spielbrett. Gibt im Fehlerfall -1 zurück, sonst 0.
 int placePiecesOnBoard(void);
 
-/* Bestimmt den günstigen Spielzug auf Basis des aktuellen Spielbretts. Schreibt diesen in den angegebenen String. */
+/* Bestimmt den günstigen Spielzug auf Basis des aktuellen Spielbretts. Schreibt diesen in den angegebenen String.
+ * * Achtung: String muss auch groß genug sein, um Antwort überhaupt halten zu können (ca. 20 Chars reichen) */
 void think(char *answer);
 
 // Räumt auf: gemallocten Speicher freigeben, Shmemory-Segmente löschen.

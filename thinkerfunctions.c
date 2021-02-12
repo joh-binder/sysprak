@@ -828,14 +828,13 @@ move tryAllMoves(coordinate origin) {
     move bestMove = createMoveStruct();
     float rating;
 
-    // normaler Turm
-    if (getTopPiece(origin) == 'w' || getTopPiece(origin) == 'b') {
+    char originTopPiece = getTopPiece(origin);
 
-        if (getTopPiece(origin) == 'w') {
-            newY = origin.yCoord + 1;
-        } else {
-            newY = origin.yCoord - 1;
-        }
+    // normaler Turm
+    if (originTopPiece == 'w' || originTopPiece == 'b') {
+
+        if (originTopPiece == 'w') { newY = origin.yCoord + 1; }
+        else { newY = origin.yCoord - 1; }
 
         // überprüfe Bewegung nach vorne links und nach vorne rechts
         for (int round = 0; round < POSSIBLE_DIRECTIONS_FORWARD; round++) {
@@ -851,7 +850,6 @@ move tryAllMoves(coordinate origin) {
             coordinate possibleTarget = numsToCoord(newX, newY);
 
             if (checkMove(origin, possibleTarget) == 0) {
-
                 coordToCode(strTarget, possibleTarget);
                 printf("Von %s nach %s Bewegen ist ein gülter Zug.\n", strOrigin, strTarget);
 
@@ -866,7 +864,7 @@ move tryAllMoves(coordinate origin) {
     }
 
     // Turm mit Dame oben
-    if (getTopPiece(origin) == 'W' || getTopPiece(origin) == 'B') {
+    if (originTopPiece == 'W' || originTopPiece == 'B') {
 
         // überprüfe alle vier Richtungen
         int xDirection, yDirection;
@@ -890,6 +888,7 @@ move tryAllMoves(coordinate origin) {
                     break;
             }
 
+            // versuche für Target, 1-7 Felder in die jeweilige Richtung zu gehen
             for (int i = 1; i < NUM_ROWS; i++) {
                 newX = origin.xCoord + i * xDirection;
                 newY = origin.yCoord + i * yDirection;
@@ -942,22 +941,16 @@ float evaluateCapture(coordinate origin, coordinate target, bool verbose) {
     float rating = POSSIBLE_MOVE_BASE_RATING;
 
     int ownWeight = computeTowerWeight(origin);
-    if (verbose && ownWeight < 0) {
-        printf(" * Der Turm, mit dem ich schlagen will, ist ziemlich schwach. Damit anzugreifen ist vielleicht nicht so gut.\n");
-    }
+    if (verbose && ownWeight < 0) { printf(" * Der Turm, mit dem ich schlagen will, ist ziemlich schwach. Damit anzugreifen ist vielleicht nicht so gut.\n"); }
     rating += WEIGHT_RATING_FACTOR * ownWeight;
 
     coordinate victim = computeVictim(origin, target);
     int victimWeight = computeTowerWeight(victim);
-    if (verbose && victimWeight < -1) {
-        printf(" * Der gegnerische Turm ist ziemlich stark. Vielleicht sollte ich lieber einen anderen angreifen.\n");
-    }
+    if (verbose && victimWeight < -1) { printf(" * Der gegnerische Turm ist ziemlich stark. Vielleicht sollte ich lieber einen anderen angreifen.\n"); }
     rating += WEIGHT_RATING_FACTOR * victimWeight;
 
     if (getTopPiece(victim) == opponentQueenTower) {
-        if (verbose) {
-            printf(" * Mit diesem Zug schlage ich eine gegnerische Dame!\n");
-        }
+        if (verbose) { printf(" * Mit diesem Zug schlage ich eine gegnerische Dame!\n"); }
         rating += CAPTURE_QUEEN_BONUS;
     }
 
@@ -969,9 +962,7 @@ float evaluateCapture(coordinate origin, coordinate target, bool verbose) {
     move potentialNextMove = tryCaptureAgain(origin, target, false);
     if (potentialNextMove.origin.xCoord != potentialNextMove.target.xCoord ||
         potentialNextMove.origin.yCoord != potentialNextMove.target.yCoord) {
-        if (verbose) {
-            printf(" * Dieser Schlag ist gut, weil ich danach noch weiterschlagen kann.\n");
-        }
+        if (verbose) { printf(" * Dieser Schlag ist gut, weil ich danach noch weiterschlagen kann.\n"); }
         rating += ANOTHER_CAPTURE_POSSIBLE_BONUS;
     } else {
         int piecesInDangerOwnAfter = howManyInDangerOwn();
@@ -1005,8 +996,10 @@ float evaluateCapture(coordinate origin, coordinate target, bool verbose) {
 
 
 /* Gegeben eine Koordinate, an der ein Turm steht, und eine zweite "blockierte" Koordinate. Testet alle Schläge
- * die der Turm an der ersten Koordinate ausführen könnte – außer solche, die zum blockierten Feld/darüber hinaus
- * führen würden. Gibt den besten möglichen Zug zurück. Wenn keine Schläge möglich sind: Gibt Standard-move mit
+ * die der Turm an der ersten Koordinate ausführen könnte – außer solche, die in die Richtung des blockierten Felds
+ * führen würden. (tryAllCaptures ohne blockiertes Feld lässt sich dann als Spezialfall von diesem sehen)
+ *
+ * Gibt den besten möglichen Zug zurück. Wenn keine Schläge möglich sind: Gibt Standard-move mit
  * origin- und target-Koordinaten -1 und rating -FLT_MAX zurück.
  *
  * verbose deaktiviert die Kommandozeilenausgabe der Bewertungsstrings. Siehe Kommentar zu evaluateCapture, warum
@@ -1020,10 +1013,11 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
     move bestMove = createMoveStruct();
     float rating;
 
-    // normaler Turm
-    if (getTopPiece(origin) == 'w' || getTopPiece(origin) == 'b') {
+    char originTopPiece = getTopPiece(origin);
 
-        // überprüfe alle vier Richtungen
+    // normaler Turm
+    if (originTopPiece == 'w' || originTopPiece == 'b') {
+        // überprüfe alle vier Richtungen bzw. alle vier potentiellen Targetfelder
         for (int round = 0; round < POSSIBLE_DIRECTIONS_FORWARD_AND_BACKWARD; round++) {
             switch (round) {
                 case 0:
@@ -1051,8 +1045,10 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
             coordinate possibleTarget = numsToCoord(newX, newY);
 
             if (checkCapture(origin, possibleTarget) == 0) {
-                coordToCode(strTarget, possibleTarget);
-                if (verbose) { printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget); }
+                if (verbose) {
+                    coordToCode(strTarget, possibleTarget);
+                    printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+                }
 
                 rating = evaluateCapture(origin, possibleTarget, verbose);
                 if (rating > bestMove.rating) {
@@ -1060,14 +1056,12 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
                     bestMove.target = possibleTarget;
                     bestMove.rating = rating;
                 }
-
             }
         }
-
     }
 
     // Turm mit Dame oben
-    if (getTopPiece(origin) == 'W' || getTopPiece(origin) == 'B') {
+    if (originTopPiece == 'W' || originTopPiece == 'B') {
         int xDirection, yDirection;
         // überprüfe alle vier Richtungen: eine Iteration pro Richtung
         for (int round = 0; round < POSSIBLE_DIRECTIONS_FORWARD_AND_BACKWARD; round++) {
@@ -1100,7 +1094,7 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
                 }
             }
 
-            // für diese Iteration/Richtung: teste, ob 2, 3, ..., 8 Felder in diese Richtung schlagen möglich ist
+            // für diese Iteration/Richtung: teste, ob 2, 3, ..., 7 Felder in diese Richtung schlagen möglich ist
             for (int i = DISTANCE_FOR_VALID_CAPTURE; i < NUM_ROWS; i++) {
                 newX = origin.xCoord + i * xDirection;
                 newY = origin.yCoord + i * yDirection;
@@ -1110,8 +1104,10 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
                 if (checkCapture(origin, possibleTarget) != 0) {
                     continue; // wenn dieser Schlag ungültig -> nächste Iteration, d.h. überprüfe Feld eins dahinter
                 } else {
-                    coordToCode(strTarget, possibleTarget);
-                    if (verbose) { printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget); }
+                    if (verbose) {
+                        coordToCode(strTarget, possibleTarget);
+                        printf("Von %s nach %s Schlagen ist ein gülter Zug.\n", strOrigin, strTarget);
+                    }
 
                     rating = evaluateCapture(origin, possibleTarget, verbose);
                     if (rating > bestMove.rating) {
@@ -1131,7 +1127,7 @@ move tryAllCapturesExcept(coordinate origin, coordinate blocked, bool verbose) {
 }
 
 /* Gegeben eine Koordinate, an der ein Turm steht. Testet alle Schläge, die der Turm an dieser Koordinate ausführen
- * könnte, und gibt den besten davon zurück. [Spezialfall von tryAllCapturesExcept, Except wird nicht genutzt]*/
+ * könnte, und gibt den besten davon zurück. [Spezialfall von tryAllCapturesExcept, das Except wird nicht genutzt] */
 move tryAllCaptures(coordinate origin) {
     return tryAllCapturesExcept(origin, numsToCoord(-1, -1), true);
 }
@@ -1153,21 +1149,23 @@ move tryCaptureAgain(coordinate nowBlocked, coordinate newOrigin, bool verbose) 
     return ret;
 }
 
-/* Bestimmt den günstigen Spielzug auf Basis des aktuellen Spielbretts. Schreibt diesen in den angegebenen String. */
+/* Bestimmt den günstigen Spielzug auf Basis des aktuellen Spielbretts. Schreibt diesen in den angegebenen String.
+ * Achtung: String muss auch groß genug sein, um Antwort überhaupt halten zu können (ca. 20 Chars reichen) */
 void think(char *answer) {
     move overallBestMove = createMoveStruct();
     move thisMove;
-    int answerCounter = 0;
+    int answerCounter = 0; // für Position im Antwortstring
 
     justConvertedToQueen = false;
 
     // versuche erst, einen gültigen Schlag-Teilzug zu finden
     for (int i = 0; i < NUM_ROWS; i++) {
         for (int j = 0; j < NUM_ROWS; j++) {
-            if (getTopPiece(numsToCoord(i, j)) != ownNormalTower && getTopPiece(numsToCoord(i, j)) != ownQueenTower) {
-                continue;
+            char thisSquareTopPiece = getTopPiece(numsToCoord(i, j));
+            if (thisSquareTopPiece != ownNormalTower && thisSquareTopPiece != ownQueenTower) {
+                continue; // Felder, auf denen kein eigener Turm steht, überspringen
             }
-            thisMove = tryAllCaptures(numsToCoord(i, j));
+            thisMove = tryAllCaptures(numsToCoord(i, j)); // berechnet den besten Spielzug, wenn von diesem Feld aus geschlagen wird
             if (thisMove.rating > overallBestMove.rating) {
                 overallBestMove.origin = thisMove.origin;
                 overallBestMove.target = thisMove.target;
@@ -1192,6 +1190,8 @@ void think(char *answer) {
             captureTower(overallBestMove.origin, overallBestMove.target);
             justConvertedToQueen = false;
 
+            // wendet tryCaptureAgain() mit den Koordinaten des alten besten Zugs an: origin ist jetzt blockiert,
+            // von target aus wird ein weiterer Teilzug gesucht; Ergebnis zurück in overallBestMove gespeichert
             overallBestMove = tryCaptureAgain(overallBestMove.origin, overallBestMove.target, true);
 
             if (overallBestMove.origin.xCoord == overallBestMove.target.xCoord &&
@@ -1210,9 +1210,9 @@ void think(char *answer) {
     } else { // kein Schlag-Teilzug gefunden -> suche Beweg-Zug
         for (int i = 0; i < NUM_ROWS; i++) {
             for (int j = 0; j < NUM_ROWS; j++) {
-                if (getTopPiece(numsToCoord(i, j)) != ownNormalTower &&
-                    getTopPiece(numsToCoord(i, j)) != ownQueenTower) {
-                    continue;
+                char thisSquareTopPiece = getTopPiece(numsToCoord(i, j));
+                if (thisSquareTopPiece != ownNormalTower && thisSquareTopPiece != ownQueenTower) {
+                    continue; // Felder, auf denen kein eigener Turm steht, überspringen
                 }
                 thisMove = tryAllMoves(numsToCoord(i, j));
                 if (thisMove.rating > overallBestMove.rating) {
@@ -1237,15 +1237,17 @@ int cleanupThinkerfunctions(void) {
     int ret = 0;
 
     if (shmidMoves != -1) {
-        if (shmDelete(shmidMoves) > 0) ret = -1;
+        if (shmDelete(shmidMoves) > 0) { ret = -1; }
     }
 
     if (pBoard != NULL) {
         free(pBoard);
+        pBoard = NULL;
     }
 
     if (pPieces != NULL) {
         free(pPieces);
+        pPieces = NULL;
     }
 
     return ret;
