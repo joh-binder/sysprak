@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
                 sigFlagMoves = false;
 
                 prepareNewRound();
-                memset(moveString, 0, strlen(moveString));
+                memset(moveString, 0, MOVE_BUFFER);
 
                 if (placePiecesOnBoard() != 0) {
                     fprintf(stderr, "Fehler beim Setzen der Steine auf das Spielbrett während des Spiels\n");
@@ -272,7 +272,12 @@ int main(int argc, char *argv[]) {
                 printf("\n=========NEUE RUNDE=========\n");
                 printFull();
 
-                think(moveString);
+                if (think(moveString, MOVE_BUFFER) != 0) {
+                    fprintf(stderr, "Fehler beim Finden eines Spielzugs\n");
+                    cleanupMain();
+                    return EXIT_FAILURE;
+                }
+
                 printf("\nDer beste Zug ist: %s\n", moveString);
                 ownWrite(fd[1], moveString);
             } else if (sigFlagMoves) { // wenn nur sigFlagMoves, ohne dass es neue Infos gibt (d.h. wenn einfach so ein SIGUSR1 gekommen ist)

@@ -42,9 +42,9 @@ void printFull(void);
 // Liest Spielsteine aus dem Shmemory und setzt sie auf das Spielbrett. Gibt im Fehlerfall -1 zurück, sonst 0.
 int placePiecesOnBoard(void);
 
-/* Bestimmt den günstigen Spielzug auf Basis des aktuellen Spielbretts. Schreibt diesen in den angegebenen String.
- * * Achtung: String muss auch groß genug sein, um Antwort überhaupt halten zu können (ca. 20 Chars reichen) */
-void think(char *answer);
+/* Nimmt einen String und dessen Länge als Parameter. Bestimmt den günstigen Spielzug auf Basis des aktuellen
+ * Spielbretts. Schreibt diesen in den angegebenen String, sofern darin genug Platz, und gibt 0 zurück; sonst -1. */
+int think(char *answer, int answerMaxLength);
 
 // Räumt auf: gemallocten Speicher freigeben, Shmemory-Segmente löschen.
 int cleanupThinkerfunctions(void);

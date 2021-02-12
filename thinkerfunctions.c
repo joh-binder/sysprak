@@ -12,13 +12,13 @@
 #define QUEEN_TO_NORMAL_RATIO 3.0
 #define NORMAL_PIECE_WEIGHT 1.0
 #define POSSIBLE_MOVE_BASE_RATING 1.0
-#define ADVANCE_NORMAL_PIECE_BONUS 0.5
+#define ADVANCE_NORMAL_PIECE_BONUS 0.6
 #define CONVERT_TO_QUEEN_BONUS 3.5
-#define OWN_ENDANGERMENT_FACTOR 1.0
-#define THREATEN_OPPONENT_FACTOR 0.25
+#define OWN_ENDANGERMENT_FACTOR 0.9
+#define THREATEN_OPPONENT_FACTOR 0.2
 #define CAPTURE_QUEEN_BONUS 3.5
-#define ANOTHER_CAPTURE_POSSIBLE_BONUS 1.5
-#define WEIGHT_RATING_FACTOR 0.5
+#define ANOTHER_CAPTURE_POSSIBLE_BONUS 1.75
+#define WEIGHT_RATING_FACTOR 0.6
 
 static int towerAllocCounter = 0;
 static unsigned int sizeOfTowerMalloc;
@@ -1149,9 +1149,9 @@ move tryCaptureAgain(coordinate nowBlocked, coordinate newOrigin, bool verbose) 
     return ret;
 }
 
-/* Bestimmt den günstigen Spielzug auf Basis des aktuellen Spielbretts. Schreibt diesen in den angegebenen String.
- * Achtung: String muss auch groß genug sein, um Antwort überhaupt halten zu können (ca. 20 Chars reichen) */
-void think(char *answer) {
+/* Nimmt einen String und dessen Länge als Parameter. Bestimmt den günstigen Spielzug auf Basis des aktuellen
+ * Spielbretts. Schreibt diesen in den angegebenen String, sofern darin genug Platz, und gibt 0 zurück; sonst -1. */
+int think(char *answer, int answerMaxLength) {
     move overallBestMove = createMoveStruct();
     move thisMove;
     int answerCounter = 0; // für Position im Antwortstring
@@ -1178,6 +1178,10 @@ void think(char *answer) {
     if (overallBestMove.origin.xCoord != -1 && overallBestMove.origin.yCoord != -1 &&
         overallBestMove.target.xCoord != -1 && overallBestMove.target.yCoord != -1) {
         coordToCode(answer, overallBestMove.origin);
+        if (answerMaxLength <= answerCounter + COORDINATE_LENGTH + 1 + COORDINATE_LENGTH) { // teste, ob überhaupt Platz für 5 Zeichen (+\n) ist
+            fprintf(stderr, "Fehler! Habe einen Schlag-Zug gefunden, aber im Antwortstring von think() ist nicht genug Platz für 5 Zeichen.\n");
+            return -1;
+        }
         answer[answerCounter + COORDINATE_LENGTH] = ':';
         coordToCode(answer + COORDINATE_LENGTH + 1, overallBestMove.target);
         answerCounter += (COORDINATE_LENGTH + 1 + COORDINATE_LENGTH);
@@ -1201,6 +1205,10 @@ void think(char *answer) {
                 moreCapturesLoop = false;
             } else {
                 // weiterer Schlagzug gefunden -> in answer schreiben
+                if (answerMaxLength <= answerCounter + 1 + COORDINATE_LENGTH) { // teste, ob überhaupt Platz für nochmal 3 Zeichen (+\n) ist
+                    fprintf(stderr, "Fehler! Im Antwortstring von think() ist nicht genug Platz für weitere 3 Zeichen eines Folgezugs.\n");
+                    return -1;
+                }
                 answer[answerCounter] = ':';
                 coordToCode(answer + answerCounter + 1, overallBestMove.target);
                 answerCounter += (1 + COORDINATE_LENGTH);
@@ -1223,6 +1231,10 @@ void think(char *answer) {
             }
         }
 
+        if (answerMaxLength <= answerCounter + COORDINATE_LENGTH + 1 + COORDINATE_LENGTH) { // teste, ob überhaupt Platz für 5 Zeichen (+\n) ist
+            fprintf(stderr, "Fehler! Habe einen Beweg-Zug gefunden, aber im Antwortstring von think() ist nicht genug Platz für 5 Zeichen.\n");
+            return -1;
+        }
         coordToCode(answer, overallBestMove.origin);
         answer[answerCounter + COORDINATE_LENGTH] = ':';
         coordToCode(answer + COORDINATE_LENGTH + 1, overallBestMove.target);
@@ -1230,6 +1242,7 @@ void think(char *answer) {
     }
 
     answer[answerCounter] = '\n'; // answer braucht am Ende ein Newline, sonst wird die Nachricht in mainloop_filehandler liegengelassen
+    return 0;
 }
 
 // Räumt auf: gemallocten Speicher freigeben, Shmemory-Segmente löschen.
