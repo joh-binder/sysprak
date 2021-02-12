@@ -400,7 +400,10 @@ void printFull(void) {
 /* Erzeugt einen neuen tower/Spielstein und setzt ihn auf das Spielbrett. Verlangt dazu als Parameter eine
  * Zielkoordinate und die Art des Spielsteins als Char. Gibt im Fehlerfall -1, sonst 0 zurück.
  * (Der neuerstellte Tower besteht aus dem angegebenen Spielstein und einem Pointer auf das, was vorher schon auf dieser
- * Koordinate stand: NULL/nichts oder ein anderer Tower --> hiermit lassen sich auch gestapelte Türme aufbauen) */
+ * Koordinate stand: NULL/nichts oder ein anderer Tower --> hiermit lassen sich auch gestapelte Türme aufbauen)
+ *
+ * addToSquare() stellt sicher, dass keine ungültigen Spielsteine (alles au0er w, W, b, B) auf das Brett gestellt werden.
+ * Da alle weiteren Methoden nur diese Steine verwenden, wird dort nicht nochmal auf Ungültigkeit geprüft. */
 int addToSquare(coordinate c, char piece) {
     if (c.xCoord < 0 || c.xCoord >= NUM_ROWS || c.yCoord == -1 || c.yCoord >= NUM_ROWS) {
         fprintf(stderr, "Fehler! Ungültige Koordinaten.\n");
@@ -474,7 +477,7 @@ int checkMove(coordinate origin, coordinate target) {
 
 /* Verschiebt einen Turm von einer angegebenen Koordinate an eine andere angegebene Koordinate. Dieser Zug wird, soweit
  * möglich, ausgeführt, ohne Rücksicht auf Gültigkeit zu nehmen. Es sollten also nur Koordinaten verwendet werden,
- * deren Regelkonformität vorher mit checkMove geprüft wurden. */
+ * deren Regelkonformität vorher mit checkMove() geprüft wurden. */
 void moveTower(coordinate origin, coordinate target) {
     // Spielsteine umsetzen
     pBoard[NUM_ROWS * target.yCoord + target.xCoord] = getPointerToSquare(origin);
@@ -492,20 +495,22 @@ void moveTower(coordinate origin, coordinate target) {
 
 /* Macht eine moveTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Sollte nicht eigenständig
  * aufgerufen werden, sondern nur in Folge einer gültigen moveTower-Operation. */
-void undoMoveTower(coordinate origin, coordinate target) {
+void undoMoveTower(coordinate oldOrigin, coordinate oldTarget) {
     // evtl. Damenumwandlung rückgängig machen
-    if (getTopPiece(target) == 'W' && justConvertedToQueen) {
-        getPointerToSquare(target)->piece = 'w';
+    if (justConvertedToQueen && getTopPiece(oldTarget) == 'W') {
+        getPointerToSquare(oldTarget)->piece = 'w';
         justConvertedToQueen = false;
-    } else if (getTopPiece(target) == 'B' && justConvertedToQueen) {
-        getPointerToSquare(target)->piece = 'b';
+    } else if (justConvertedToQueen && getTopPiece(oldTarget) == 'B') {
+        getPointerToSquare(oldTarget)->piece = 'b';
         justConvertedToQueen = false;
     }
-    moveTower(target, origin);
+    // jetzt einfach moveTower() umgekehrt verwenden
+    moveTower(oldTarget, oldOrigin);
 }
 
-/* Gegeben die Koordinaten für origin und target, berechnet die Koordinaten für Victim (d.h. ein Feld vor Target aus der Richtung, in der Origin ist).
- * Liefert vermutlich kein richtiges Ergebnis, wenn origin und target nicht auf einer Diagonale stehen -> vorher prüfen. */
+/* Gegeben die Koordinaten für Origin und Target, berechnet die Koordinaten für Victim
+ * (d.h. ein Feld vor Target aus der Richtung, in der Origin steht).
+ * Liefert vermutlich Blödsinn, wenn origin und target nicht auf einer Diagonale stehen -> vorher prüfen. */
 coordinate computeVictim(coordinate origin, coordinate target) {
     int xDirection = getSign(target.xCoord - origin.xCoord);
     int yDirection = getSign(target.yCoord - origin.yCoord);
@@ -516,8 +521,8 @@ coordinate computeVictim(coordinate origin, coordinate target) {
 }
 
 /* Gegeben eine Ursprungs- und eine Zielkoordinate, überprüft ob es erlaubt wäre, mit dem Turm so zu schlagen.
- * [Beachte: Target ist nicht das Feld des Turms, der geschlagen wird, sondern das Feld dahinter, auf dem der
- * eigene Turm abgestellt wird.] Wenn ja, gibt 0 zurück; wenn nein, gibt -1 zurück. */
+ * Wenn ja, gibt 0 zurück; wenn nein, gibt -1 zurück. (Beachte: Target ist nicht das Feld des Turms, der geschlagen wird,
+ * sondern das Feld dahinter, auf dem der eigene Turm abgestellt werden würde.)  */
 int checkCapture(coordinate origin, coordinate target) {
     if (origin.xCoord == -1 || origin.yCoord == -1) {
         return -1; // ungültige Ursprungskoordinate
@@ -529,6 +534,9 @@ int checkCapture(coordinate origin, coordinate target) {
         return -1; // Ursprungs- und Zielfeld liegen nicht auf einer Diagonale
     }
 
+    if (getPointerToSquare(origin) == NULL) {
+        return -1; // auf dem Ursprungsfeld steht gar kein Turm, mit dem man schlagen könnte
+    }
     char originTopPiece = getTopPiece(origin);
     int originTargetDistance = abs(origin.xCoord - target.xCoord);
     if ((originTopPiece == 'b' || originTopPiece == 'w') && originTargetDistance != DISTANCE_FOR_VALID_CAPTURE) {
@@ -539,6 +547,15 @@ int checkCapture(coordinate origin, coordinate target) {
 
     coordinate victim = computeVictim(origin, target);
     char victimTopPiece = getTopPiece(victim);
+
+    if (getPointerToSquare(origin) == NULL) {
+        return -1; // auf dem Ursprungsfeld steht gar kein Turm, mit dem man schlagen könnte
+    } else if (getPointerToSquare(victim) == NULL) {
+        return -1; // auf dem Victim-Feld ist gar kein Turm, der geschlagen werden könnte
+    } else if (getPointerToSquare(target) != NULL) {
+        return -1; // auf dem Zielfeld steht schon ein Turm -> Abstellen nicht möglich
+    }
+
     if ((originTopPiece == 'b' || originTopPiece == 'B') && (victimTopPiece == 'b' || victimTopPiece == 'B')) {
         return -1; // Ein schwarzer Turm kann keinen anderen schwarzen Turm schlagen.
     } else if ((originTopPiece == 'w' || originTopPiece == 'W') && (victimTopPiece == 'w' || victimTopPiece == 'W')) {
@@ -546,8 +563,8 @@ int checkCapture(coordinate origin, coordinate target) {
     }
 
     // überprüft alle Felder zwischen Origin und Victim
-    int xDirection = getSign(target.xCoord - origin.xCoord);
-    int yDirection = getSign(target.yCoord - origin.yCoord);
+    int xDirection = getSign(victim.xCoord - origin.xCoord);
+    int yDirection = getSign(victim.yCoord - origin.yCoord);
     int i = origin.xCoord + xDirection;
     int j = origin.yCoord + yDirection;
     while (i != victim.xCoord) {
@@ -558,19 +575,11 @@ int checkCapture(coordinate origin, coordinate target) {
         j += yDirection;
     }
 
-    if (getPointerToSquare(origin) == NULL) {
-        return -1; // auf dem Ursprungsfeld steht gar kein Turm
-    } else if (getPointerToSquare(victim) == NULL) {
-        return -1; // auf dem Victim-Feld ist gar kein Turm, der geschlagen werden könnte
-    } else if (getPointerToSquare(target) != NULL) {
-        return -1; // auf dem Zielfeld steht schon ein Turm
-    }
-
     return 0;
 }
 
-/* Gegeben eine Koordinate auf dem Spielbrett, überprüft ob Turm, der auf diesem Feld steht, in Gefahr ist, geschlagen zu werden.
- * Funktioniert nur für Türme in der eigenen Farbe. */
+/* Gegeben eine Koordinate auf dem Spielbrett, überprüft ob Turm, der auf diesem Feld steht, in Gefahr ist,
+ * geschlagen zu werden. Funktioniert nur für Türme in der eigenen Farbe. */
 bool isInDanger(coordinate square) {
     // überprüfe alle vier Richtungen
     int xDirection, yDirection;
@@ -594,7 +603,7 @@ bool isInDanger(coordinate square) {
                 break;
         }
 
-        // berechne das Feld hinter square (wo der gegnerische Turm nach dem Schlagen von square abgestellt werden müsste)
+        // berechne das Feld hinter square (wo gegnerischer Turm nach dem Schlagen von square abgestellt werden müsste)
         coordinate behind = numsToCoord(square.xCoord + xDirection, square.yCoord + yDirection);
 
         if (behind.xCoord == -1 || behind.yCoord == -1) {
@@ -608,14 +617,15 @@ bool isInDanger(coordinate square) {
         yDirection *= -1;
         coordinate potentialOpponentPiece;
 
-        // 6, weil Bashni insgesamt 8 Felder pro Diagonale hat; mit 1 Feld für square und 1 für dahinter bleiben noch 6 Felder, an denen ein schlagender Stein stehen könnte
+        // Schleife bis 6 (bzw. NUM_ROWS-1-1), weil Bashni insgesamt 8 Felder pro Diagonale hat
+        // mit 1 Feld für square und 1 für dahinter bleiben noch 6 Felder, an denen ein schlagender Stein stehen könnte
         for (int i = 1; i <= NUM_ROWS - 1 - 1; i++) {
             potentialOpponentPiece = numsToCoord(square.xCoord + i * xDirection, square.yCoord + i * yDirection);
 
             if (potentialOpponentPiece.xCoord == -1 || potentialOpponentPiece.yCoord == -1) {
                 break; // wenn dieses Feld ungültige Koordinate -> schon über Spielbrettrand -> in dieser Richtung sicher
             } else if (getPointerToSquare(potentialOpponentPiece) == NULL) {
-                continue; // wenn auf diesem Feld nichts -> nächste Iteration, prüfe das Feld dahinter
+                continue; // wenn auf diesem Feld nichts steht -> nächste Iteration, prüfe das Feld dahinter
             } else if (getTopPiece(potentialOpponentPiece) == ownNormalTower ||
                        getTopPiece(potentialOpponentPiece) == ownQueenTower) {
                 break; // wenn auf diesem Feld ein eigener Turm steht -> in dieser Richtung sicher
@@ -628,7 +638,8 @@ bool isInDanger(coordinate square) {
     return false;
 }
 
-/* Zählt, wie viele Türme der eigenen Farbe sich nach Stand des momentanen Spielbretts in Gefahr befinden. Eine Dame zählt mehrfach. */
+/* Zählt, wie viele Türme der eigenen Farbe sich nach Stand des momentanen Spielbretts in Gefahr befinden.
+ * Eine Dame zählt mehrfach. */
 int howManyInDangerOwn(void) {
     int countTotalInDanger = 0;
 
@@ -641,9 +652,9 @@ int howManyInDangerOwn(void) {
             }
             if (isInDanger(thisCoord)) {
                 if (topPieceHere == ownNormalTower) {
-                    countTotalInDanger += 1; // wenn normaler Turm, countTotalInDanger um 1 erhöhen
+                    countTotalInDanger += 1;
                 } else {
-                    countTotalInDanger += QUEEN_TO_NORMAL_RATIO * 1; // wenn Dame, zählt mehrfach
+                    countTotalInDanger += QUEEN_TO_NORMAL_RATIO * 1; // Dame zählt mehrfach
                 }
             }
         }
@@ -653,7 +664,7 @@ int howManyInDangerOwn(void) {
 
 /* Vertauscht die Information, welches die eigene und welches die gegnerische Farbe ist, in der globalen Variable.
  * Damit lässt sich isInDanger bzw. howManyInDangerOwn aus der Sicht des Gegners anwenden.
- * [Natürlich müssen die Farben danach wieder zurückgetauscht werden]*/
+ * Nicht vergessen, dass die Farben danach wieder zurückgetauscht werden müssen! */
 void swapOwnAndOppPieces(void) {
     char tempNormalTower, tempQueenTower;
     tempNormalTower = ownNormalTower;
@@ -664,7 +675,8 @@ void swapOwnAndOppPieces(void) {
     opponentQueenTower = tempQueenTower;
 }
 
-/* Zählt, wie viele Türme der gegnerischen Farbe sich nach Stand des momentanen Spielbretts in Gefahr befinden. Eine Dame zählt mehrfach. */
+/* Zählt, wie viele Türme der gegnerischen Farbe sich nach Stand des momentanen Spielbretts in Gefahr befinden.
+ * Eine Dame zählt mehrfach. */
 int howManyInDangerOpponent(void) {
     swapOwnAndOppPieces();
     int ret = howManyInDangerOwn();
@@ -675,16 +687,16 @@ int howManyInDangerOpponent(void) {
 /* Nimmt den Turm, der an der Koordinate origin steht, schlägt den Turm, vor dem Feld target steht,
  * (d.h. entfernt den obersten Spielstein und fügt ihn zum eigenen Turm hinzu) und setzt den Ergebnisturm dann an die
  * Koordinate target. Dieser Zug wird, soweit möglich, ausgeführt, ohne Rücksicht auf Gültigkeit zu nehmen.
- * Es sollten also nur Koordinaten verwendet werden, deren Regelkonformität vorher mit checkCapture geprüft wurden. */
+ * Es sollten also nur Koordinaten verwendet werden, deren Regelkonformität vorher mit checkCapture() geprüft wurden. */
 void captureTower(coordinate origin, coordinate target) {
     coordinate victim = computeVictim(origin, target);
 
     // erstelle Pointer für die neuen Türme
     tower *pNewVictimTower = getPointerToSquare(victim)->next; // neuer Victim-Turm ist alter Victim, bis auf den obersten Spielstein
-    tower *pTowerForTarget = getPointerToSquare(origin); // neuer Target-Turm ist erstmal nur der alte Origin-Turm
+    tower *pNewTargetTower = getPointerToSquare(origin); // neuer Target-Turm ist erstmal nur der alte Origin-Turm
 
-    // durchgehen bis zum untersten Spielstein des neuen Target-Turms
-    tower *pCurrent = pTowerForTarget;
+    // durchgehen bis zum untersten Spielstein des neuen Target-Turms (= bisher noch Origin-Turm)
+    tower *pCurrent = pNewTargetTower;
     while (pCurrent->next != NULL) {
         pCurrent = pCurrent->next;
     }
@@ -694,7 +706,7 @@ void captureTower(coordinate origin, coordinate target) {
 
     // die neuen Türme aufs Brett setzen
     pBoard[NUM_ROWS * victim.yCoord + victim.xCoord] = pNewVictimTower;
-    pBoard[NUM_ROWS * target.yCoord + target.xCoord] = pTowerForTarget;
+    pBoard[NUM_ROWS * target.yCoord + target.xCoord] = pNewTargetTower;
     pBoard[NUM_ROWS * origin.yCoord + origin.xCoord] = NULL;
 
     // evtl. Verwandlung in Dame
@@ -708,25 +720,25 @@ void captureTower(coordinate origin, coordinate target) {
 
 }
 
-/* Macht eine captureTower-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Es wird angenommen, dass die
- * Funktion nicht eigenständig aufgerufen wird, sondern nur in Folge einer gültigen captureTower-Operation. */
-void undoCaptureTower(coordinate origin, coordinate target) {
-    coordinate victim = computeVictim(origin, target);
+/* Macht eine captureTower()-Operation rückgängig. Die Parameterreihenfolge bleibt gleich. Es wird angenommen, dass die
+ * Funktion nicht eigenständig aufgerufen wird, sondern nur in Folge einer gültigen captureTower()-Operation. */
+void undoCaptureTower(coordinate oldOrigin, coordinate oldTarget) {
+    coordinate victim = computeVictim(oldOrigin, oldTarget);
 
     // evtl. Damenumwandlung rückgängig machen
-    if (getTopPiece(target) == 'W' && justConvertedToQueen) {
-        getPointerToSquare(target)->piece = 'w';
+    if (getTopPiece(oldTarget) == 'W' && justConvertedToQueen) {
+        getPointerToSquare(oldTarget)->piece = 'w';
         justConvertedToQueen = false;
-    } else if (getTopPiece(target) == 'B' && justConvertedToQueen) {
-        getPointerToSquare(target)->piece = 'b';
+    } else if (getTopPiece(oldTarget) == 'B' && justConvertedToQueen) {
+        getPointerToSquare(oldTarget)->piece = 'b';
         justConvertedToQueen = false;
     }
 
     // ab hier eigentliches Umversetzen
-    tower *pCurrent = getPointerToSquare(target);
+    tower *pCurrent = getPointerToSquare(oldTarget);
     tower *pBottomPieceOfTarget;
     while (pCurrent->next->next != NULL) {
-        pCurrent = pCurrent->next; // durchgehen, bis pCurrent auf den zweituntersten Spielstein von target zeigt
+        pCurrent = pCurrent->next; // durchgehen, bis pCurrent auf den zweituntersten Spielstein von oldTarget zeigt
     }
 
     pBottomPieceOfTarget = pCurrent->next; // so bekommen wir den untersten Spielstein von Target
@@ -735,8 +747,8 @@ void undoCaptureTower(coordinate origin, coordinate target) {
     pBottomPieceOfTarget->next = getPointerToSquare(victim); // an den untersten Spielstein von Target wird der ganze Victim-Turm angefügt -> rekonstruiert den Victim-Turm, wie er vorher war
     pBoard[NUM_ROWS * victim.yCoord + victim.xCoord] = pBottomPieceOfTarget; // rekonstruierter Victim-Turm auf Feld Victim stellen
 
-    pBoard[NUM_ROWS * origin.yCoord + origin.xCoord] = getPointerToSquare(target); // der restliche Turm auf Target kommt zurück nach Origin
-    pBoard[NUM_ROWS * target.yCoord + target.xCoord] = NULL; // auf Target steht dann nichts mehr
+    pBoard[NUM_ROWS * oldOrigin.yCoord + oldOrigin.xCoord] = getPointerToSquare(oldTarget); // der restliche Turm auf Target kommt zurück nach Origin
+    pBoard[NUM_ROWS * oldTarget.yCoord + oldTarget.xCoord] = NULL; // auf Target steht dann nichts mehr
 }
 
 /* Berechnet das "Gewicht" eines Turms an einer gegebenen Koordinate. Dieses "Gewicht" soll ein Maß für die
@@ -749,25 +761,24 @@ float computeTowerWeight(coordinate square) {
 
     while (pCurrent != NULL) { // Schleife über alle Steine im Turm
         // betrachte den Stein, auf den gerade pCurrent zeigt, und addiere/subtrahiere zu weight
-        if (pCurrent->piece == ownNormalTower) weight += NORMAL_PIECE_WEIGHT;
-        else if (pCurrent->piece == ownQueenTower) weight += QUEEN_TO_NORMAL_RATIO * NORMAL_PIECE_WEIGHT;
-        else if (pCurrent->piece == opponentNormalTower) weight -= NORMAL_PIECE_WEIGHT;
-        else if (pCurrent->piece == opponentQueenTower) weight -= QUEEN_TO_NORMAL_RATIO * NORMAL_PIECE_WEIGHT;
+        if (pCurrent->piece == ownNormalTower) { weight += NORMAL_PIECE_WEIGHT; }
+        else if (pCurrent->piece == ownQueenTower) { weight += QUEEN_TO_NORMAL_RATIO * NORMAL_PIECE_WEIGHT; }
+        else if (pCurrent->piece == opponentNormalTower) { weight -= NORMAL_PIECE_WEIGHT; }
+        else if (pCurrent->piece == opponentQueenTower) { weight -= QUEEN_TO_NORMAL_RATIO * NORMAL_PIECE_WEIGHT; }
         pCurrent = pCurrent->next;
     }
     return weight;
 }
 
-/* Nimmt die Ursprungs- und Zielkoordinaten einer (gültigen!) Turmverschiebung entgegen und gibt ein Rating zurück,
- * wie gut dieser Zug ist. Rating wird nach folgenden Kriterien bestimmt:
+/* Nimmt die Ursprungs- und Zielkoordinaten einer (gültigen!) eigenen Turmverschiebung entgegen und gibt ein Rating
+ * zurück, wie gut dieser Zug ist. Rating wird nach folgenden Kriterien bestimmt:
  *
  * - Es gibt ein Grundrating, das jeder gültige Zug einfach hat.
  * - Ein Zug mit einem normalen Turm ist ein kleines bisschen besser als ein Zug mit einer Dame, weil es einen Schritt
  *   Richtung Damenumwandlung bedeutet.
  * - Zusätzlich wird betrachtet, wie der Zug die Gefahrenlage ändert: Wenn danach eigene Spielsteine bedroht werden,
- *   ist das schlecht --> bestrafen. Wenn danach gegnerische Spielsteine bedroht werden, ist das gut -> belohnen (aber nicht
- *   um den gleichen Faktor wie eigene Bedrohung, da der Gegner ja als nächstes dran ist und reagieren kann).
- * */
+ *   ist das schlecht -> bestrafen. Wenn danach gegnerische Spielsteine bedroht werden, ist das gut -> belohnen (aber
+ *   nicht um den gleichen Faktor wie eigene Bedrohung, da der Gegner ja als nächstes dran ist und reagieren kann). */
 float evaluateMove(coordinate origin, coordinate target) {
     float rating = POSSIBLE_MOVE_BASE_RATING;
 
@@ -781,6 +792,8 @@ float evaluateMove(coordinate origin, coordinate target) {
     moveTower(origin, target);
 
     int piecesInDangerOwnAfter = howManyInDangerOwn();
+    int piecesInDangerOppAfter = howManyInDangerOpponent();
+
     int dangerDifferenceOwn = piecesInDangerOwnAfter - piecesInDangerOwnPrev;
     if (dangerDifferenceOwn > 0) {
         printf(" * Mit diesem Zug bringe ich einen meiner Spielsteine in Gefahr...\n");
@@ -789,7 +802,6 @@ float evaluateMove(coordinate origin, coordinate target) {
     }
     rating -= OWN_ENDANGERMENT_FACTOR * dangerDifferenceOwn;
 
-    int piecesInDangerOppAfter = howManyInDangerOpponent();
     int dangerDifferenceOpp = piecesInDangerOppAfter - piecesInDangerOppPrev;
     if (dangerDifferenceOpp > 0) {
         printf(" * Mit diesem Zug bedrohe ich einen gegnerischen Spielstein.\n");
